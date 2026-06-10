@@ -1,0 +1,40 @@
+# Mapping config: this file is where sensors get their *meaning*.
+#
+# Each rule matches some (src, chan) coming off the wire and linearly scales
+# the raw value into an output range, sent on an OSC address that the Sonic Pi
+# sketch reads. Edit this file and restart the bridge to "rewire" the mapping
+# from control devices to musical parameters -- no firmware re-flash needed.
+#
+# The Sonic Pi sketch (../../sonicpi/peter_gunn.rb) reads these addresses with
+#   get "/osc*/play/<name>"
+
+osc:
+  host: 127.0.0.1
+  port: 4560          # Sonic Pi's default OSC-in port
+
+mappings:
+  # Source "1": built-in light sensor -> bass filter cutoff.
+  # micro:bit light is 0..255; map to a musical cutoff sweep.
+  - match: { src: "1", chan: light }
+    osc: "/play/cutoff"
+    in:  [0, 255]
+    out: [60, 130]
+
+  # Source "1": accelerometer X -> overall reverb mix (tilt = wetter).
+  # micro:bit accel is roughly -1024..1024.
+  - match: { src: "1", chan: accel_x }
+    osc: "/play/reverb"
+    in:  [-1024, 1024]
+    out: [0.0, 1.0]
+
+  # Source "2": a potentiometer on an analogue pin -> lead/brass volume.
+  - match: { src: "2", chan: pot }
+    osc: "/play/lead_amp"
+    in:  [0, 1023]
+    out: [0.0, 1.5]
+
+  # Source "2": a flex sensor -> drum kit volume.
+  - match: { src: "2", chan: flex }
+    osc: "/play/drums_amp"
+    in:  [0, 1023]
+    out: [0.0, 1.2]
