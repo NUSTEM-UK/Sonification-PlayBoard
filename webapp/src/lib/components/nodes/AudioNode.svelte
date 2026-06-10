@@ -16,7 +16,10 @@
 
 <div class="node {spec.kind}" style="--accent:{spec.accent}">
   {#if spec.hasAudioIn}
-    <Handle type="target" position={Position.Top} id="audio-in" class="h-audio" />
+    <Handle type="target" position={Position.Left} id="audio-in" class="h-audio" style="top:18px" />
+  {/if}
+  {#if spec.hasAudioOut}
+    <Handle type="source" position={Position.Right} id="audio-out" class="h-audio" style="top:18px" />
   {/if}
 
   <header>
@@ -40,6 +43,7 @@
         {/if}
         <span class="pname">{p.label}</span>
         <input
+          class="nodrag"
           type="range"
           min={p.min}
           max={p.max}
@@ -54,10 +58,6 @@
       </div>
     {/each}
   </div>
-
-  {#if spec.hasAudioOut}
-    <Handle type="source" position={Position.Bottom} id="audio-out" class="h-audio" />
-  {/if}
 </div>
 
 <style>

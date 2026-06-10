@@ -6,10 +6,32 @@
   import ComponentWell from "./lib/components/ComponentWell.svelte";
   import Canvas from "./lib/components/Canvas.svelte";
   import { startTick, stopTick } from "./lib/graph/tick";
+  import { audioEngine } from "./lib/audio/engine";
+  import { audioState } from "./lib/audio/audioState.svelte";
 
   onMount(() => {
     startTick();
-    return () => stopTick();
+
+    // Resume the AudioContext on the first genuine user gesture anywhere.
+    // `pointerdown` fires the moment you grab a palette item to drag (and is a
+    // valid activation gesture, unlike `drop`), so audio is live by the time a
+    // node lands on the canvas — no need to hunt for the Start-audio button.
+    function unlock() {
+      void audioEngine.start().then(() => {
+        if (audioState.started) {
+          window.removeEventListener("pointerdown", unlock);
+          window.removeEventListener("keydown", unlock);
+        }
+      });
+    }
+    window.addEventListener("pointerdown", unlock);
+    window.addEventListener("keydown", unlock);
+
+    return () => {
+      stopTick();
+      window.removeEventListener("pointerdown", unlock);
+      window.removeEventListener("keydown", unlock);
+    };
   });
 </script>
 

@@ -37,6 +37,8 @@
     } else if (payload.kind === "palette" && payload.type) {
       graph.addPaletteNode(payload.type, position);
     }
+    // Audio is unlocked on first pointerdown (see App.svelte) — `drop` is not a
+    // valid activation gesture, so we deliberately don't resume it here.
   }
 
   // Re-sync the Tone graph only when the audio topology actually changes

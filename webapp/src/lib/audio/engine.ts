@@ -9,10 +9,18 @@
  * signal-modulation in the tick loop).
  */
 
-import * as Tone from "tone";
+// Tone is imported for TYPES ONLY here (this is erased at build time). The
+// runtime module is loaded lazily in start() — importing it eagerly would make
+// Tone create its global AudioContext at page load, which Chrome flags with the
+// "AudioContext was not allowed to start" warning before any user gesture.
+import type * as Tone from "tone";
 import { specFor } from "../graph/specs";
 import type { AppEdge, AppNode } from "../graph/graph.svelte";
 import { edgeKind } from "../graph/graph.svelte";
+import { audioState } from "./audioState.svelte";
+
+/** The runtime Tone.js module, populated by start() after a user gesture. */
+let T: typeof import("tone");
 
 interface AudioUnit {
   /** Where audio enters (filters, output). Null for pure generators. */
@@ -30,8 +38,8 @@ function ramp(target: Tone.Signal<any> | Tone.Param<any>, value: number): void {
 function createUnit(type: string): AudioUnit {
   switch (type) {
     case "drone": {
-      const osc = new Tone.Oscillator(110, "sawtooth").start();
-      const out = new Tone.Gain(0.4);
+      const osc = new T.Oscillator(110, "sawtooth").start();
+      const out = new T.Gain(0.4);
       osc.connect(out);
       return {
         input: null,
@@ -47,9 +55,9 @@ function createUnit(type: string): AudioUnit {
       };
     }
     case "pad": {
-      const fat = new Tone.FatOscillator(220, "sawtooth", 14).start();
+      const fat = new T.FatOscillator(220, "sawtooth", 14).start();
       fat.count = 3;
-      const out = new Tone.Gain(0.3);
+      const out = new T.Gain(0.3);
       fat.connect(out);
       return {
         input: null,
@@ -66,8 +74,8 @@ function createUnit(type: string): AudioUnit {
       };
     }
     case "noise": {
-      const noise = new Tone.Noise("pink").start();
-      const out = new Tone.Gain(0.25);
+      const noise = new T.Noise("pink").start();
+      const out = new T.Gain(0.25);
       noise.connect(out);
       return {
         input: null,
@@ -82,7 +90,7 @@ function createUnit(type: string): AudioUnit {
       };
     }
     case "lowpass": {
-      const filter = new Tone.Filter(1200, "lowpass");
+      const filter = new T.Filter(1200, "lowpass");
       return {
         input: filter,
         output: filter,
@@ -96,7 +104,7 @@ function createUnit(type: string): AudioUnit {
       };
     }
     case "reverb": {
-      const reverb = new Tone.Reverb(4);
+      const reverb = new T.Reverb(4);
       reverb.generate();
       let pending: ReturnType<typeof setTimeout> | null = null;
       return {
@@ -118,7 +126,7 @@ function createUnit(type: string): AudioUnit {
       };
     }
     case "delay": {
-      const delay = new Tone.FeedbackDelay(0.3, 0.4);
+      const delay = new T.FeedbackDelay(0.3, 0.4);
       return {
         input: delay,
         output: delay,
@@ -133,7 +141,7 @@ function createUnit(type: string): AudioUnit {
       };
     }
     case "master": {
-      const gain = new Tone.Gain(0.8).toDestination();
+      const gain = new T.Gain(0.8).toDestination();
       return {
         input: gain,
         output: null,
@@ -152,12 +160,26 @@ function createUnit(type: string): AudioUnit {
 
 class AudioEngine {
   #units = new Map<string, AudioUnit>();
-  started = false;
+  // Remember the latest graph so we can build it the moment audio is allowed.
+  #lastNodes: AppNode[] = [];
+  #lastEdges: AppEdge[] = [];
 
-  /** Resume the AudioContext — must be called from a user gesture. */
+  get started(): boolean {
+    return audioState.started;
+  }
+
+  /**
+   * Resume the AudioContext — must be called from a user gesture — then build
+   * any audio units the graph already has (sync() is a no-op before this).
+   */
   async start(): Promise<void> {
-    await Tone.start();
-    this.started = true;
+    if (audioState.started) return;
+    // Load Tone here, inside the gesture: this is when its AudioContext is
+    // created, so it's created *after* the gesture and Chrome stays quiet.
+    T = await import("tone");
+    await T.start();
+    audioState.started = true;
+    this.sync(this.#lastNodes, this.#lastEdges);
   }
 
   setParam(nodeId: string, key: string, value: number): void {
@@ -166,6 +188,12 @@ class AudioEngine {
 
   /** Reconcile the Tone graph with the current visual graph. */
   sync(nodes: AppNode[], edges: AppEdge[]): void {
+    // Always remember the graph, but don't touch Tone (which would force the
+    // AudioContext to start) until a user gesture has resumed it.
+    this.#lastNodes = nodes;
+    this.#lastEdges = edges;
+    if (!audioState.started) return;
+
     const audioNodes = nodes.filter((n) => {
       const spec = specFor(n.data.specType);
       return spec.kind === "generator" || spec.kind === "filter" || spec.kind === "output";

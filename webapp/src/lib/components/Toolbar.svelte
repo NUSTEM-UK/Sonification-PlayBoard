@@ -1,8 +1,7 @@
 <script lang="ts">
   import { gateway } from "../serial/gateway.svelte";
   import { audioEngine } from "../audio/engine";
-
-  let audioStarted = $state(false);
+  import { audioState } from "../audio/audioState.svelte";
 
   const statusLabel: Record<string, string> = {
     disconnected: "Disconnected",
@@ -11,11 +10,6 @@
     mock: "Mock data",
     error: "Error",
   };
-
-  async function startAudio() {
-    await audioEngine.start();
-    audioStarted = true;
-  }
 </script>
 
 <header class="toolbar">
@@ -31,8 +25,8 @@
   </div>
 
   <div class="actions">
-    {#if !audioStarted}
-      <button class="primary" onclick={startAudio}>🔊 Start audio</button>
+    {#if !audioState.started}
+      <button class="primary" onclick={() => audioEngine.start()}>🔊 Start audio</button>
     {:else}
       <span class="ok">🔊 audio on</span>
     {/if}

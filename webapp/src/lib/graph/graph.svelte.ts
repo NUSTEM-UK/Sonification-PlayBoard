@@ -61,22 +61,30 @@ class Graph {
 
   addSourceNode(channelId: string, position: { x: number; y: number }): void {
     const title = channelId; // "src/chan"
-    this.nodes.push({
-      id: nextId("src"),
-      type: "source",
-      position,
-      data: { specType: SOURCE_SPEC.type, params: {}, channelId, title },
-    });
+    // Reassign (not push): <SvelteFlow bind:nodes> tracks the array reference,
+    // so an in-place mutation wouldn't be reflected on the canvas.
+    this.nodes = [
+      ...this.nodes,
+      {
+        id: nextId("src"),
+        type: "source",
+        position,
+        data: { specType: SOURCE_SPEC.type, params: {}, channelId, title },
+      },
+    ];
   }
 
   addPaletteNode(type: string, position: { x: number; y: number }): void {
     const spec = specFor(type);
-    this.nodes.push({
-      id: nextId(spec.type),
-      type: componentType(spec.kind),
-      position,
-      data: { specType: spec.type, params: defaultParams(spec), title: spec.label },
-    });
+    this.nodes = [
+      ...this.nodes,
+      {
+        id: nextId(spec.type),
+        type: componentType(spec.kind),
+        position,
+        data: { specType: spec.type, params: defaultParams(spec), title: spec.label },
+      },
+    ];
   }
 
   setParam(nodeId: string, key: string, value: number): void {

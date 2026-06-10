@@ -26,7 +26,7 @@ Then in the app:
 3. Drag a channel from **Live sources** (left) onto the canvas.
 4. Drag a **Generator** and the **Master out** from the **Components** well
    (right) onto the canvas. Connect generator → master (the green audio ports
-   are on the top/bottom edges).
+   are on the left/right edges: audio out on the right, audio in on the left).
 5. Drag from a source's right-hand port into a generator parameter's left-hand
    port to **modulate** it with the sensor. Twist the sensor and listen.
 
@@ -37,7 +37,7 @@ Then in the app:
 ## How it fits together
 
 | Area | File | Role |
-|---|---|---|
+| --- | --- | --- |
 | Wire protocol | [`src/lib/serial/protocol.ts`](src/lib/serial/protocol.ts) | Parse `src,chan,val` lines (unchanged from the original project) |
 | Gateway | [`src/lib/serial/gateway.svelte.ts`](src/lib/serial/gateway.svelte.ts) | Web Serial reader + mock generator; tracks channels and calibrates them to 0..1 |
 | Node taxonomy | [`src/lib/graph/specs.ts`](src/lib/graph/specs.ts) | Every draggable node: params, handles, accent — one source of truth |

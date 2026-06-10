@@ -28,7 +28,7 @@
     <span class="raw">{channel ? channel.raw : "—"}</span>
   </div>
 
-  <button class="cal" onclick={() => d.channelId && gateway.recalibrate(d.channelId)}>
+  <button class="cal nodrag" onclick={() => d.channelId && gateway.recalibrate(d.channelId)}>
     Recalibrate range
   </button>
 

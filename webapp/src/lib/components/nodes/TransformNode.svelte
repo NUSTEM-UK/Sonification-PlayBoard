@@ -23,6 +23,7 @@
       <label class="param">
         <span class="pname">{p.label}</span>
         <input
+          class="nodrag"
           type="range"
           min={p.min}
           max={p.max}
