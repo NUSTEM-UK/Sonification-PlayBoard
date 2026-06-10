@@ -1,0 +1,96 @@
+<script lang="ts">
+  import { untrack } from "svelte";
+  import { SvelteFlow, Background, Controls, MiniMap, useSvelteFlow } from "@xyflow/svelte";
+  import "@xyflow/svelte/dist/style.css";
+  import {
+    graph,
+    isValidConnection,
+    decorateConnection,
+    audioTopologySignature,
+  } from "../graph/graph.svelte";
+  import { audioEngine } from "../audio/engine";
+  import SourceNode from "./nodes/SourceNode.svelte";
+  import TransformNode from "./nodes/TransformNode.svelte";
+  import AudioNode from "./nodes/AudioNode.svelte";
+
+  const nodeTypes = {
+    source: SourceNode,
+    transform: TransformNode,
+    audio: AudioNode,
+  };
+
+  const { screenToFlowPosition } = useSvelteFlow();
+
+  function onDragOver(e: DragEvent) {
+    e.preventDefault();
+    if (e.dataTransfer) e.dataTransfer.dropEffect = "move";
+  }
+
+  function onDrop(e: DragEvent) {
+    e.preventDefault();
+    const raw = e.dataTransfer?.getData("application/playboard");
+    if (!raw) return;
+    const payload = JSON.parse(raw) as { kind: string; channelId?: string; type?: string };
+    const position = screenToFlowPosition({ x: e.clientX, y: e.clientY });
+    if (payload.kind === "source" && payload.channelId) {
+      graph.addSourceNode(payload.channelId, position);
+    } else if (payload.kind === "palette" && payload.type) {
+      graph.addPaletteNode(payload.type, position);
+    }
+  }
+
+  // Re-sync the Tone graph only when the audio topology actually changes
+  // (not on every drag): the signature is a memoised string, so this effect
+  // is skipped while nodes are merely being moved around.
+  const sig = $derived(audioTopologySignature(graph.nodes, graph.edges));
+  $effect(() => {
+    sig;
+    untrack(() => audioEngine.sync(graph.nodes, graph.edges));
+  });
+</script>
+
+<div class="canvas" ondrop={onDrop} ondragover={onDragOver} role="application">
+  <SvelteFlow
+    bind:nodes={graph.nodes}
+    bind:edges={graph.edges}
+    {nodeTypes}
+    {isValidConnection}
+    onbeforeconnect={decorateConnection}
+    ondelete={(d) => graph.onDelete(d)}
+    fitView
+    colorMode="dark"
+    deleteKey={["Backspace", "Delete"]}
+  >
+    <Background gap={22} />
+    <Controls />
+    <MiniMap pannable zoomable />
+  </SvelteFlow>
+</div>
+
+<style>
+  .canvas {
+    flex: 1;
+    min-width: 0;
+    height: 100%;
+  }
+  /* Wire styling: signal flows are thin + animated, audio is thick. */
+  :global(.svelte-flow .edge-signal .svelte-flow__edge-path) {
+    stroke: #a78bfa;
+    stroke-width: 1.5;
+  }
+  :global(.svelte-flow .edge-audio .svelte-flow__edge-path) {
+    stroke: #34d399;
+    stroke-width: 3;
+  }
+  :global(.svelte-flow .h-audio) {
+    width: 12px;
+    height: 12px;
+    background: #34d399;
+    border: 2px solid #0b1220;
+  }
+  :global(.svelte-flow .h-param) {
+    width: 9px;
+    height: 9px;
+    background: #a78bfa;
+  }
+</style>

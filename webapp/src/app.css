@@ -1,0 +1,27 @@
+:root {
+  color-scheme: dark;
+  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  background: #060a13;
+  color: #e2e8f0;
+  overflow: hidden;
+}
+
+#app {
+  height: 100%;
+}
+
+/* Svelte Flow sits on a slightly lighter field than the panels. */
+.svelte-flow {
+  background: #0a0f1c;
+}

@@ -181,3 +181,12 @@ cython_debug/
 .cursorindexingignore
 
 music_sources/
+
+# --- Web app (Node/Svelte) -------------------------------------------------
+# The Python template above ignores `lib/`, `build/`, `dist/` etc. anywhere in
+# the tree. Those would swallow the web app's hand-written source under
+# webapp/src/lib/, so re-include it explicitly. (Real build output is handled
+# by webapp/.gitignore: node_modules/ and dist/.)
+!webapp/src/lib/
+!webapp/src/lib/**
+node_modules/

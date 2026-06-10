@@ -1,0 +1,147 @@
+/**
+ * The signal tick: ~30 times a second, push live data through the graph.
+ *
+ *   1. Source nodes read their gateway channel's normalised value.
+ *   2. Transform nodes recompute from their upstream signal (rolling average,
+ *      rate of change, …), in dependency order, and store their own value +
+ *      sparkline history.
+ *   3. Every signal edge landing on a parameter input modulates that parameter
+ *      on the audio engine, mapped from 0..1 into the parameter's real range.
+ *
+ * Audio-rate work lives in Tone.js; this loop only nudges control values, so a
+ * modest rate is plenty and keeps the UI cheap.
+ */
+
+import { gateway } from "../serial/gateway.svelte";
+import { audioEngine } from "../audio/engine";
+import { graph, edgeKind } from "./graph.svelte";
+import type { AppNode } from "./graph.svelte";
+import { specFor, type ParamSpec } from "./specs";
+import { getRuntime, setValue } from "./runtime";
+
+const TICK_MS = 33;
+const clamp01 = (v: number) => (v < 0 ? 0 : v > 1 ? 1 : v);
+
+interface TransformState {
+  buf: number[];
+  prev: number;
+  ema: number;
+  primed: boolean;
+}
+const tStates = new Map<string, TransformState>();
+
+function transformState(id: string): TransformState {
+  let s = tStates.get(id);
+  if (!s) {
+    s = { buf: [], prev: 0, ema: 0, primed: false };
+    tStates.set(id, s);
+  }
+  return s;
+}
+
+function applyTransform(node: AppNode, input: number): number {
+  const p = node.data.params;
+  const s = transformState(node.id);
+  if (!s.primed) {
+    s.prev = input;
+    s.ema = input;
+    s.primed = true;
+  }
+  switch (node.data.specType) {
+    case "rollingAvg": {
+      const window = Math.max(1, Math.round(p.window ?? 12));
+      s.buf.push(input);
+      while (s.buf.length > window) s.buf.shift();
+      return s.buf.reduce((a, b) => a + b, 0) / s.buf.length;
+    }
+    case "smooth": {
+      const amount = p.amount ?? 0.8;
+      s.ema = amount * s.ema + (1 - amount) * input;
+      return s.ema;
+    }
+    case "differential": {
+      const gain = p.gain ?? 10;
+      const delta = input - s.prev;
+      s.prev = input;
+      return clamp01(0.5 + delta * gain);
+    }
+    case "scale": {
+      return clamp01(input * (p.gain ?? 1) + (p.offset ?? 0));
+    }
+    default:
+      return input;
+  }
+}
+
+/** Map a 0..1 signal onto a parameter's real range (log-aware). */
+function mapParam(p: ParamSpec, signal: number): number {
+  const s = clamp01(signal);
+  if (p.log && p.min > 0) {
+    return p.min * Math.pow(p.max / p.min, s);
+  }
+  return p.min + s * (p.max - p.min);
+}
+
+let timer: ReturnType<typeof setInterval> | null = null;
+
+function evaluate(): void {
+  const nodes = graph.nodes;
+  const edges = graph.edges;
+  const byId = new Map(nodes.map((n) => [n.id, n]));
+  const computed = new Set<string>();
+
+  function valueOf(id: string): number {
+    if (computed.has(id)) return getRuntime(id).value;
+    const node = byId.get(id);
+    if (!node) return 0;
+    const kind = specFor(node.data.specType).kind;
+    if (kind === "source") {
+      const ch = node.data.channelId ? gateway.channels[node.data.channelId] : undefined;
+      const v = ch ? ch.normalized : 0;
+      computed.add(id);
+      setValue(id, v);
+      return v;
+    }
+    if (kind === "transform") {
+      computed.add(id); // guards against cycles (falls back to last value)
+      const inEdge = edges.find((e) => e.target === id && e.targetHandle === "signal-in");
+      const input = inEdge ? valueOf(inEdge.source) : 0;
+      const out = applyTransform(node, input);
+      setValue(id, out);
+      return out;
+    }
+    return 0; // audio nodes have no signal output
+  }
+
+  // Compute every signal-producing node so sparklines stay live even unwired.
+  for (const node of nodes) {
+    const kind = specFor(node.data.specType).kind;
+    if (kind === "source" || kind === "transform") valueOf(node.id);
+  }
+
+  // Drive parameter modulation from signal→param edges.
+  for (const edge of edges) {
+    if (edgeKind(edge) !== "signal") continue;
+    const handle = edge.targetHandle ?? "";
+    if (!handle.startsWith("param:")) continue;
+    const key = handle.slice("param:".length);
+    const target = byId.get(edge.target);
+    if (!target) continue;
+    const pspec = specFor(target.data.specType).params.find((pp) => pp.key === key);
+    if (!pspec) continue;
+    const value = mapParam(pspec, valueOf(edge.source));
+    audioEngine.setParam(edge.target, key, value);
+  }
+}
+
+export function startTick(): void {
+  if (timer !== null) return;
+  timer = setInterval(evaluate, TICK_MS);
+}
+
+export function stopTick(): void {
+  if (timer !== null) {
+    clearInterval(timer);
+    timer = null;
+  }
+}
