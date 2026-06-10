@@ -1,0 +1,25 @@
+{
+  "name": "playboard-webapp",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "PlayBoard: in-browser sensor sonification. Node-graph UI + Tone.js soundscape, fed by a micro:bit serial gateway over Web Serial.",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "check": "svelte-check --tsconfig ./tsconfig.json"
+  },
+  "devDependencies": {
+    "@sveltejs/vite-plugin-svelte": "^5.0.0",
+    "@tsconfig/svelte": "^5.0.4",
+    "svelte": "^5.19.0",
+    "svelte-check": "^4.1.4",
+    "typescript": "^5.7.0",
+    "vite": "^6.0.0"
+  },
+  "dependencies": {
+    "@xyflow/svelte": "^1.0.0",
+    "tone": "^15.0.0"
+  }
+}

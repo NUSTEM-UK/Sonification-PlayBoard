@@ -1,5 +1,25 @@
 # TODO — dynamic mapping, ambient engine, mapping UI
 
+> **⚠️ Superseded (2026-06-10) by the web app in [`../webapp/`](../webapp/).**
+>
+> The architecture below assumed a Python bridge + OSC + Sonic Pi, on the belief
+> that *"browsers can't read serial and can't send OSC."* That constraint no
+> longer holds: **Chrome's Web Serial API** lets the browser read the gateway
+> directly, and **Tone.js** makes the sound in-page. So the whole chain collapses
+> to two boxes — **micro:bit gateway → Chrome web app** — and the node-graph
+> mapping UI, auto-discovery, live remapping, and calibration *are* the web app.
+>
+> What carried over: the **`src,chan,val` wire protocol** (unchanged), the
+> **dumb-sources principle**, the **micro:bit gateway + source firmware**, and
+> the idea of **ambient, quality-based** sonification. What changed: no Python,
+> no OSC, no manifest (the app owns its parameters), and **calibration is in-app**
+> (auto-range + a "recalibrate/wiggle" reset) rather than YAML ranges. The
+> original Python/Sonic Pi code is preserved under [`../legacy/`](../legacy/).
+>
+> The notes below are kept for historical context only.
+
+---
+
 Working notes for the next phase. Captured at the end of a session so it can be
 picked up cold (likely on a branch). This supersedes the vague "Stage 3/4" lines
 in the top-level README roadmap once it lands.

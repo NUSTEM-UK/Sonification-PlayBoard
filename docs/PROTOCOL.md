@@ -43,13 +43,21 @@ Rules:
 acc,temp,21
 ```
 
+## Who reads these lines?
+
+The [web app](../webapp/) reads them **directly in Chrome** via the Web Serial
+API — no Python bridge in between. (The original Python bridge + Sonic Pi path
+is preserved under [../legacy/](../legacy/) and reads the exact same lines.)
+Because the protocol is frozen, the consumer is swappable without touching the
+firmware.
+
 ## Why raw values, not normalised?
 
 Sources stay dumb: a micro:bit just reads a sensor and broadcasts the number it
-got. All scaling, ranging, and *meaning* live in the bridge's mapping config
-([../bridge/config/mapping.example.yaml](../bridge/config/mapping.example.yaml)).
-That keeps the firmware trivial (good for the classroom) and makes "what does
-this knob control?" a config edit, not a re-flash.
+got. All scaling, ranging, and *meaning* live in the consumer — the web app
+normalises each channel to `0..1` with in-app calibration. That keeps the
+firmware trivial (good for the classroom) and makes "what does this knob
+control?" a drag on the canvas, not a re-flash.
 
 ## micro:bit sink reference (Stage 2)
 
