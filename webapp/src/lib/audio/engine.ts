@@ -182,6 +182,13 @@ class AudioEngine {
     this.sync(this.#lastNodes, this.#lastEdges);
   }
 
+  /** Suspend the AudioContext — silences everything; start() resumes it. */
+  async stop(): Promise<void> {
+    if (!audioState.started || !T) return;
+    audioState.started = false;
+    await (T.getContext().rawContext as AudioContext).suspend();
+  }
+
   setParam(nodeId: string, key: string, value: number): void {
     this.#units.get(nodeId)?.setParam(key, value);
   }

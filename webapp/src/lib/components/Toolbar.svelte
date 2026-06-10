@@ -28,7 +28,7 @@
     {#if !audioState.started}
       <button class="primary" onclick={() => audioEngine.start()}>🔊 Start audio</button>
     {:else}
-      <span class="ok">🔊 audio on</span>
+      <button class="stop" onclick={() => audioEngine.stop()}>⏸ Stop audio</button>
     {/if}
 
     <button onclick={() => gateway.connectSerial()}>Connect gateway</button>
@@ -106,9 +106,12 @@
     color: #04141f;
     font-weight: 700;
   }
-  .ok {
-    color: #22c55e;
-    font-size: 12px;
-    align-self: center;
+  button.stop {
+    border-color: #22c55e;
+    color: #bbf7d0;
+    background: #14321f;
+  }
+  button.stop:hover {
+    background: #1c4a2c;
   }
 </style>
