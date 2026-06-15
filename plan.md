@@ -27,9 +27,11 @@ Refactor to a plugin-style node architecture first, then deliver high-value clas
 - Quantizer transform with configurable outputs (start with pentatonic presets and root).
 - More musical scale mapping (octave span and base note replacing opaque scale/offset behavior).
 3. Expand baseline generator affordances with sine, square, and sawtooth waveforms.
-4. Add generator-level mute and solo controls with deterministic graph-wide behavior.
-5. Add multiple output nodes (without full bus complexity), each with level, stereo pan, and optional revealable effects (start with reverb controls).
-6. Define clear mute/solo and multi-output resolution rules.
+4. Add more musical generator nodes aimed at melodic and harmonic exploration (for example, plucked, bell-like, and pad-oriented voices).
+5. Add synthesizer-style generator nodes with instrument-like properties (for example, envelope shape, articulation, timbre controls) so flows can be mapped to expressive textures such as swelling strings for temperature and brass chords for CO2.
+6. Add generator-level mute and solo controls with deterministic graph-wide behavior.
+7. Add multiple output nodes (without full bus complexity), each with level, stereo pan, and optional revealable effects (start with reverb controls).
+8. Define clear mute/solo and multi-output resolution rules.
 
 ### 4. Save/Load and Project Interchange
 
