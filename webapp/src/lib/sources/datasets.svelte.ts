@@ -30,6 +30,13 @@ function isTimeLike(header: string): boolean {
   return /^(time|timestamp|t)$/i.test(header.trim());
 }
 
+function looksLikeUnitsRow(cells: string[]): boolean {
+  const nonempty = cells.filter((cell) => cell.length > 0);
+  if (nonempty.length === 0) return false;
+  const nonNumeric = nonempty.filter((cell) => !Number.isFinite(Number(cell)));
+  return nonNumeric.length > nonempty.length / 2;
+}
+
 class DatasetStore {
   datasets = $state<DatasetRecord[]>([]);
 
@@ -37,11 +44,18 @@ class DatasetStore {
     const lines = text
       .split(/\r?\n/)
       .map((line) => line.trim())
-      .filter((line) => line.length > 0);
+      .filter((line) => line.length > 0 && !line.startsWith("#"));
     if (lines.length < 2) throw new Error("CSV needs a header row and at least one data row.");
 
-    const headers = splitCsvLine(lines[0]);
-    const rows = lines.slice(1).map(splitCsvLine);
+    const headerIndex = lines.findIndex((line) => line.includes(","));
+    if (headerIndex < 0) throw new Error("No columns found in the CSV.");
+
+    const headers = splitCsvLine(lines[headerIndex]);
+    const possibleRows = lines.slice(headerIndex + 1).map(splitCsvLine);
+    let rows = possibleRows;
+    if (rows.length > 0 && looksLikeUnitsRow(rows[0])) {
+      rows = rows.slice(1);
+    }
     const columns: DatasetColumn[] = [];
 
     headers.forEach((header, columnIndex) => {

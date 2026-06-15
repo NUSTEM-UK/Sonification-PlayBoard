@@ -35,6 +35,11 @@ if (sourceModules.length !== 1) {
 }
 
 export const SOURCE_NODE_MODULE = sourceModules[0];
+export const RECORDED_SOURCE_NODE_MODULE = discoveredModules.find((m) => m.type === "recordedSource");
+
+if (!RECORDED_SOURCE_NODE_MODULE) {
+  throw new Error("Expected a recordedSource node module, but none was found.");
+}
 
 export const PALETTE_NODE_MODULES: NodeModule[] = discoveredModules
   .filter((m) => m.kind !== "source")
@@ -44,7 +49,7 @@ export const PALETTE_NODE_MODULES: NodeModule[] = discoveredModules
     return a.spec.label.localeCompare(b.spec.label);
   });
 
-export const ALL_NODE_MODULES: NodeModule[] = [...PALETTE_NODE_MODULES, SOURCE_NODE_MODULE];
+export const ALL_NODE_MODULES: NodeModule[] = [...PALETTE_NODE_MODULES, SOURCE_NODE_MODULE, RECORDED_SOURCE_NODE_MODULE];
 
 export const SOURCE_SPEC: NodeSpec = SOURCE_NODE_MODULE.spec;
 export const PALETTE_SPECS: NodeSpec[] = PALETTE_NODE_MODULES.map((m) => m.spec);
