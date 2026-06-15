@@ -1,12 +1,12 @@
 <script lang="ts">
   import { Handle, Position, type NodeProps } from "@xyflow/svelte";
-  import { specFor } from "../../graph/specs";
-  import { graph, type NodeData } from "../../graph/graph.svelte";
+  import { graph } from "../../graph/graph.svelte";
   import { audioEngine } from "../../audio/engine";
+  import { asNodeData, formatParamValue, nodeSpec } from "./nodeModel";
 
   let { id, data }: NodeProps = $props();
-  const d = $derived(data as NodeData);
-  const spec = $derived(specFor(d.specType));
+  const d = $derived(asNodeData(data));
+  const spec = $derived(nodeSpec(d));
 
   function onParam(key: string, value: number) {
     d.params[key] = value;
@@ -53,7 +53,7 @@
           oninput={(e) => onParam(p.key, +e.currentTarget.value)}
         />
         <span class="pval">
-          {#if modulated}mod{:else}{d.params[p.key]?.toFixed(p.step && p.step >= 1 ? 0 : 2)}{p.unit ? ` ${p.unit}` : ""}{/if}
+          {#if modulated}mod{:else}{formatParamValue(d.params[p.key], p.step)}{p.unit ? ` ${p.unit}` : ""}{/if}
         </span>
       </div>
     {/each}

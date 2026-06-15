@@ -84,3 +84,7 @@ npm run build      # static bundle in dist/ — serve over https, or run `npm ru
 
 The whole thing is a static SPA: host `dist/` anywhere that serves over `https`
 (Web Serial requirement) and a class can open it in Chrome.
+
+## Developer Docs
+
+- [Node module examples](docs/NODE_MODULE_EXAMPLES.md): one example each for source, transform, generator, and output modules.

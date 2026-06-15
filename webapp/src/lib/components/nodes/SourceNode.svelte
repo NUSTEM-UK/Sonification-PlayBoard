@@ -2,12 +2,12 @@
   import { Handle, Position, type NodeProps } from "@xyflow/svelte";
   import { gateway } from "../../serial/gateway.svelte";
   import { SOURCE_SPEC } from "../../graph/specs";
-  import type { NodeData } from "../../graph/graph.svelte";
+  import { asNodeData } from "./nodeModel";
   import Sparkline from "../Sparkline.svelte";
   import ValueReadout from "../ValueReadout.svelte";
 
   let { id, data }: NodeProps = $props();
-  const d = $derived(data as NodeData);
+  const d = $derived(asNodeData(data));
 
   const channel = $derived(d.channelId ? gateway.channels[d.channelId] : undefined);
   const live = $derived(!!d.channelId && gateway.isLive(d.channelId));

@@ -9,17 +9,14 @@
 
 import type { Edge, Node, Connection, IsValidConnection } from "@xyflow/svelte";
 import { dropRuntime } from "./runtime";
-import {
-  SOURCE_SPEC,
-  defaultParams,
-  specFor,
-  type NodeKind,
-  type NodeSpec,
-} from "./specs";
+import { SOURCE_SPEC, specFor, type NodeSpec } from "./specs";
+import { getNodeDefinition, NODE_DATA_VERSION } from "../nodes/registry";
 
 export interface NodeData extends Record<string, unknown> {
   /** The spec key: "source" | "rollingAvg" | "drone" | "lowpass" | … */
   specType: string;
+  /** Schema guard for future graph migration support. */
+  dataVersion: number;
   params: Record<string, number>;
   /** Set on source nodes: which gateway channel they read. */
   channelId?: string;
@@ -42,13 +39,6 @@ export function edgeKind(edge: Pick<Edge, "targetHandle">): WireKind {
   return edge.targetHandle === "audio-in" ? "audio" : "signal";
 }
 
-/** Svelte Flow component key (the `type` field) for a spec's kind. */
-function componentType(kind: NodeKind): string {
-  if (kind === "source") return "source";
-  if (kind === "transform") return "transform";
-  return "audio"; // generator | filter | output share one component
-}
-
 let counter = 0;
 function nextId(prefix: string): string {
   counter += 1;
@@ -61,28 +51,29 @@ class Graph {
 
   addSourceNode(channelId: string, position: { x: number; y: number }): void {
     const title = channelId; // "src/chan"
+    const def = getNodeDefinition(SOURCE_SPEC.type);
     // Reassign (not push): <SvelteFlow bind:nodes> tracks the array reference,
     // so an in-place mutation wouldn't be reflected on the canvas.
     this.nodes = [
       ...this.nodes,
       {
         id: nextId("src"),
-        type: "source",
+        type: def.componentType,
         position,
-        data: { specType: SOURCE_SPEC.type, params: {}, channelId, title },
+        data: def.createData({ title, channelId, params: {}, dataVersion: NODE_DATA_VERSION }),
       },
     ];
   }
 
   addPaletteNode(type: string, position: { x: number; y: number }): void {
-    const spec = specFor(type);
+    const def = getNodeDefinition(type);
     this.nodes = [
       ...this.nodes,
       {
-        id: nextId(spec.type),
-        type: componentType(spec.kind),
+        id: nextId(def.type),
+        type: def.componentType,
         position,
-        data: { specType: spec.type, params: defaultParams(spec), title: spec.label },
+        data: def.createData({ dataVersion: NODE_DATA_VERSION }),
       },
     ];
   }

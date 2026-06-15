@@ -18,144 +18,22 @@ import { specFor } from "../graph/specs";
 import type { AppEdge, AppNode } from "../graph/graph.svelte";
 import { edgeKind } from "../graph/graph.svelte";
 import { audioState } from "./audioState.svelte";
+import { getNodeDefinition } from "../nodes/registry";
+import type { AudioUnit } from "../nodes/core";
 
 /** The runtime Tone.js module, populated by start() after a user gesture. */
 let T: typeof import("tone");
-
-interface AudioUnit {
-  /** Where audio enters (filters, output). Null for pure generators. */
-  input: Tone.ToneAudioNode | null;
-  /** Where audio leaves (generators, filters). Null for the master output. */
-  output: Tone.ToneAudioNode | null;
-  setParam(key: string, value: number): void;
-  dispose(): void;
-}
 
 function ramp(target: Tone.Signal<any> | Tone.Param<any>, value: number): void {
   target.rampTo(value, 0.03);
 }
 
 function createUnit(type: string): AudioUnit {
-  switch (type) {
-    case "drone": {
-      const osc = new T.Oscillator(110, "sawtooth").start();
-      const out = new T.Gain(0.4);
-      osc.connect(out);
-      return {
-        input: null,
-        output: out,
-        setParam(key, v) {
-          if (key === "freq") ramp(osc.frequency, v);
-          else if (key === "level") ramp(out.gain, v);
-        },
-        dispose() {
-          osc.dispose();
-          out.dispose();
-        },
-      };
-    }
-    case "pad": {
-      const fat = new T.FatOscillator(220, "sawtooth", 14).start();
-      fat.count = 3;
-      const out = new T.Gain(0.3);
-      fat.connect(out);
-      return {
-        input: null,
-        output: out,
-        setParam(key, v) {
-          if (key === "freq") ramp(fat.frequency, v);
-          else if (key === "detune") fat.spread = v;
-          else if (key === "level") ramp(out.gain, v);
-        },
-        dispose() {
-          fat.dispose();
-          out.dispose();
-        },
-      };
-    }
-    case "noise": {
-      const noise = new T.Noise("pink").start();
-      const out = new T.Gain(0.25);
-      noise.connect(out);
-      return {
-        input: null,
-        output: out,
-        setParam(key, v) {
-          if (key === "level") ramp(out.gain, v);
-        },
-        dispose() {
-          noise.dispose();
-          out.dispose();
-        },
-      };
-    }
-    case "lowpass": {
-      const filter = new T.Filter(1200, "lowpass");
-      return {
-        input: filter,
-        output: filter,
-        setParam(key, v) {
-          if (key === "cutoff") ramp(filter.frequency, v);
-          else if (key === "resonance") ramp(filter.Q, v);
-        },
-        dispose() {
-          filter.dispose();
-        },
-      };
-    }
-    case "reverb": {
-      const reverb = new T.Reverb(4);
-      reverb.generate();
-      let pending: ReturnType<typeof setTimeout> | null = null;
-      return {
-        input: reverb,
-        output: reverb,
-        setParam(key, v) {
-          if (key === "wet") ramp(reverb.wet, v);
-          else if (key === "decay") {
-            reverb.decay = v;
-            // Regenerating the impulse is costly; debounce while a slider drags.
-            if (pending) clearTimeout(pending);
-            pending = setTimeout(() => reverb.generate(), 120);
-          }
-        },
-        dispose() {
-          if (pending) clearTimeout(pending);
-          reverb.dispose();
-        },
-      };
-    }
-    case "delay": {
-      const delay = new T.FeedbackDelay(0.3, 0.4);
-      return {
-        input: delay,
-        output: delay,
-        setParam(key, v) {
-          if (key === "time") ramp(delay.delayTime, v);
-          else if (key === "feedback") ramp(delay.feedback, v);
-          else if (key === "wet") ramp(delay.wet, v);
-        },
-        dispose() {
-          delay.dispose();
-        },
-      };
-    }
-    case "master": {
-      const gain = new T.Gain(0.8).toDestination();
-      return {
-        input: gain,
-        output: null,
-        setParam(key, v) {
-          if (key === "level") ramp(gain.gain, v);
-        },
-        dispose() {
-          gain.dispose();
-        },
-      };
-    }
-    default:
-      throw new Error(`no audio unit for node type: ${type}`);
+  const def = getNodeDefinition(type);
+  if (!def.createAudioUnit) {
+    throw new Error(`node type has no audio unit factory: ${type}`);
   }
+  return def.createAudioUnit(T, { ramp });
 }
 
 class AudioEngine {

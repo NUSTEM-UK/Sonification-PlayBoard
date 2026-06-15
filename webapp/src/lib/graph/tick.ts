@@ -17,60 +17,37 @@ import { audioEngine } from "../audio/engine";
 import { graph, edgeKind } from "./graph.svelte";
 import type { AppNode } from "./graph.svelte";
 import { specFor, type ParamSpec } from "./specs";
+import { getNodeDefinition } from "../nodes/registry";
 import { getRuntime, setValue } from "./runtime";
 
 const TICK_MS = 33;
 const clamp01 = (v: number) => (v < 0 ? 0 : v > 1 ? 1 : v);
 
 interface TransformState {
-  buf: number[];
-  prev: number;
-  ema: number;
-  primed: boolean;
+  state: unknown;
 }
 const tStates = new Map<string, TransformState>();
 
 function transformState(id: string): TransformState {
   let s = tStates.get(id);
   if (!s) {
-    s = { buf: [], prev: 0, ema: 0, primed: false };
+    s = { state: undefined };
     tStates.set(id, s);
   }
   return s;
 }
 
 function applyTransform(node: AppNode, input: number): number {
-  const p = node.data.params;
-  const s = transformState(node.id);
-  if (!s.primed) {
-    s.prev = input;
-    s.ema = input;
-    s.primed = true;
-  }
-  switch (node.data.specType) {
-    case "rollingAvg": {
-      const window = Math.max(1, Math.round(p.window ?? 12));
-      s.buf.push(input);
-      while (s.buf.length > window) s.buf.shift();
-      return s.buf.reduce((a, b) => a + b, 0) / s.buf.length;
-    }
-    case "smooth": {
-      const amount = p.amount ?? 0.8;
-      s.ema = amount * s.ema + (1 - amount) * input;
-      return s.ema;
-    }
-    case "differential": {
-      const gain = p.gain ?? 10;
-      const delta = input - s.prev;
-      s.prev = input;
-      return clamp01(0.5 + delta * gain);
-    }
-    case "scale": {
-      return clamp01(input * (p.gain ?? 1) + (p.offset ?? 0));
-    }
-    default:
-      return input;
-  }
+  const def = getNodeDefinition(node.data.specType);
+  if (!def.processSignal) return input;
+  const store = transformState(node.id);
+  return def.processSignal(input, node.data.params, {
+    clamp01,
+    getState<T>(init: () => T): T {
+      if (store.state === undefined) store.state = init();
+      return store.state as T;
+    },
+  });
 }
 
 /** Map a 0..1 signal onto a parameter's real range (log-aware). */
@@ -87,6 +64,10 @@ let timer: ReturnType<typeof setInterval> | null = null;
 function evaluate(): void {
   const nodes = graph.nodes;
   const edges = graph.edges;
+  const liveNodeIds = new Set(nodes.map((n) => n.id));
+  for (const id of tStates.keys()) {
+    if (!liveNodeIds.has(id)) tStates.delete(id);
+  }
   const byId = new Map(nodes.map((n) => [n.id, n]));
   const computed = new Set<string>();
 

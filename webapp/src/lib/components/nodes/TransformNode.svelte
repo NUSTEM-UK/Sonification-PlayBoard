@@ -1,13 +1,12 @@
 <script lang="ts">
   import { Handle, Position, type NodeProps } from "@xyflow/svelte";
-  import { specFor } from "../../graph/specs";
-  import type { NodeData } from "../../graph/graph.svelte";
+  import { asNodeData, formatParamValue, nodeSpec } from "./nodeModel";
   import Sparkline from "../Sparkline.svelte";
   import ValueReadout from "../ValueReadout.svelte";
 
   let { id, data }: NodeProps = $props();
-  const d = $derived(data as NodeData);
-  const spec = $derived(specFor(d.specType));
+  const d = $derived(asNodeData(data));
+  const spec = $derived(nodeSpec(d));
 </script>
 
 <div class="node transform" style="--accent:{spec.accent}">
@@ -30,7 +29,7 @@
           step={p.step ?? 0.01}
           bind:value={d.params[p.key]}
         />
-        <span class="pval">{d.params[p.key]?.toFixed(p.step && p.step >= 1 ? 0 : 2)}</span>
+        <span class="pval">{formatParamValue(d.params[p.key], p.step)}</span>
       </label>
     {/each}
   </div>

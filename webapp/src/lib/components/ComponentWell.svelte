@@ -1,16 +1,12 @@
 <script lang="ts">
-  import { PALETTE, KIND_ORDER, KIND_LABEL, type NodeSpec } from "../graph/specs";
+  import { getWellGroups, type NodeDefinition } from "../nodes/registry";
 
-  const groups = KIND_ORDER.map((kind) => ({
-    kind,
-    label: KIND_LABEL[kind],
-    specs: PALETTE.filter((s) => s.kind === kind),
-  })).filter((g) => g.specs.length > 0);
+  const groups = getWellGroups();
 
-  function onDragStart(e: DragEvent, spec: NodeSpec) {
+  function onDragStart(e: DragEvent, def: NodeDefinition) {
     e.dataTransfer?.setData(
       "application/playboard",
-      JSON.stringify({ kind: "palette", type: spec.type }),
+      JSON.stringify({ kind: "palette", type: def.type }),
     );
     if (e.dataTransfer) e.dataTransfer.effectAllowed = "move";
   }
@@ -21,20 +17,20 @@
   <p class="hint">Drag onto the canvas to build a soundscape.</p>
 
   {#each groups as group (group.kind)}
-    <h3 style="color:{group.specs[0].accent}">{group.label}</h3>
+    <h3 style="color:{group.defs[0].spec.accent}">{group.label}</h3>
     <div class="items">
-      {#each group.specs as spec (spec.type)}
+      {#each group.defs as def (def.type)}
         <div
           class="item"
-          style="--accent:{spec.accent}"
+          style="--accent:{def.spec.accent}"
           draggable="true"
-          ondragstart={(e) => onDragStart(e, spec)}
-          title={spec.blurb}
+          ondragstart={(e) => onDragStart(e, def)}
+          title={def.spec.blurb}
           role="button"
           tabindex="0"
         >
-          <span class="label">{spec.label}</span>
-          <span class="blurb">{spec.blurb}</span>
+          <span class="label">{def.spec.label}</span>
+          <span class="blurb">{def.spec.blurb}</span>
         </div>
       {/each}
     </div>
