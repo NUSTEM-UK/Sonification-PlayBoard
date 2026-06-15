@@ -3,6 +3,7 @@ export type NodeKind = "source" | "transform" | "generator" | "filter" | "output
 export interface ParamOption {
   value: number;
   label: string;
+  icon?: string;
 }
 
 export interface ParamSpec {

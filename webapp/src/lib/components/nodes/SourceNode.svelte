@@ -37,11 +37,11 @@
 
 <style>
   .node {
-    width: 200px;
+    width: 228px;
     background: #0f172a;
     border: 1px solid var(--accent);
     border-radius: 10px;
-    padding: 8px 10px 10px;
+    padding: 8px 12px 11px;
     color: #e2e8f0;
     font: 12px/1.4 system-ui, sans-serif;
     box-shadow: 0 6px 18px rgba(0, 0, 0, 0.35);
@@ -51,6 +51,7 @@
     align-items: center;
     gap: 6px;
     margin-bottom: 6px;
+    padding-left: 2px;
   }
   .title {
     font-weight: 600;
@@ -72,6 +73,7 @@
     align-items: baseline;
     gap: 6px;
     margin-top: 6px;
+    padding-left: 2px;
   }
   .muted {
     color: #64748b;

@@ -3,9 +3,9 @@ import { AudioNodeModule } from "../core";
 
 const WAVEFORMS = ["sine", "square", "sawtooth"] as const;
 const WAVEFORM_OPTIONS = [
-  { value: 0, label: "Sine" },
-  { value: 1, label: "Square" },
-  { value: 2, label: "Saw" },
+  { value: 0, label: "Sine", icon: "sine" },
+  { value: 1, label: "Square", icon: "square" },
+  { value: 2, label: "Saw", icon: "saw" },
 ] as const;
 
 const spec: NodeSpec = {

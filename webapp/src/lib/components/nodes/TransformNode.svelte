@@ -40,11 +40,11 @@
 
 <style>
   .node {
-    width: 210px;
+    width: 282px;
     background: #0f172a;
     border: 1px solid var(--accent);
     border-radius: 10px;
-    padding: 8px 10px 10px;
+    padding: 8px 12px 11px;
     color: #e2e8f0;
     font: 12px/1.4 system-ui, sans-serif;
     box-shadow: 0 6px 18px rgba(0, 0, 0, 0.35);
@@ -55,6 +55,7 @@
     justify-content: space-between;
     gap: 6px;
     margin-bottom: 6px;
+    padding-left: 6px;
   }
   .title {
     font-weight: 600;
@@ -67,19 +68,21 @@
   }
   .param {
     display: grid;
-    grid-template-columns: 64px 1fr 34px;
+    grid-template-columns: 74px 1fr 46px;
     align-items: center;
     gap: 6px;
+    padding-left: 6px;
   }
   .pname {
-    font-size: 10px;
+    font-size: 10.5px;
     color: #94a3b8;
   }
   .pval {
-    font-size: 10px;
+    font-size: 9.5px;
     text-align: right;
     color: #cbd5e1;
     font-variant-numeric: tabular-nums;
+    white-space: nowrap;
   }
   input[type="range"] {
     width: 100%;
