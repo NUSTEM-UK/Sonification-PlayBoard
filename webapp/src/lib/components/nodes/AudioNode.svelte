@@ -8,6 +8,12 @@
   const d = $derived(asNodeData(data));
   const spec = $derived(nodeSpec(d));
 
+  function selectedOptionLabel(paramKey: string, value: number): string | null {
+    const param = spec.params.find((p) => p.key === paramKey);
+    const opt = param?.options?.find((o) => o.value === Math.round(value));
+    return opt?.label ?? null;
+  }
+
   function onParam(key: string, value: number) {
     d.params[key] = value;
     audioEngine.setParam(id, key, value);
@@ -42,18 +48,37 @@
           />
         {/if}
         <span class="pname">{p.label}</span>
-        <input
-          class="nodrag"
-          type="range"
-          min={p.min}
-          max={p.max}
-          step={p.step ?? 0.01}
-          value={d.params[p.key]}
-          disabled={modulated}
-          oninput={(e) => onParam(p.key, +e.currentTarget.value)}
-        />
+        {#if p.options && p.options.length > 0}
+          <div class="segmented nodrag" role="group" aria-label={p.label}>
+            {#each p.options as opt (opt.value)}
+              <button
+                class="opt"
+                class:active={Math.round(d.params[p.key] ?? p.default) === opt.value}
+                type="button"
+                onclick={() => onParam(p.key, opt.value)}
+              >
+                {opt.label}
+              </button>
+            {/each}
+          </div>
+        {:else}
+          <input
+            class="nodrag"
+            type="range"
+            min={p.min}
+            max={p.max}
+            step={p.step ?? 0.01}
+            value={d.params[p.key]}
+            disabled={modulated}
+            oninput={(e) => onParam(p.key, +e.currentTarget.value)}
+          />
+        {/if}
         <span class="pval">
-          {#if modulated}mod{:else}{formatParamValue(d.params[p.key], p.step)}{p.unit ? ` ${p.unit}` : ""}{/if}
+          {#if modulated}
+            mod
+          {:else}
+            {selectedOptionLabel(p.key, d.params[p.key] ?? p.default) ?? formatParamValue(d.params[p.key], p.step)}{p.unit ? ` ${p.unit}` : ""}
+          {/if}
         </span>
       </div>
     {/each}
@@ -127,5 +152,34 @@
   }
   input[type="range"]:disabled {
     opacity: 0.4;
+  }
+  .segmented {
+    display: flex;
+    border: 1px solid #334155;
+    border-radius: 7px;
+    overflow: hidden;
+    background: #0b1220;
+    min-height: 24px;
+  }
+  .opt {
+    flex: 1;
+    border: 0;
+    border-right: 1px solid #334155;
+    background: transparent;
+    color: #94a3b8;
+    font-size: 10px;
+    padding: 4px 0;
+    cursor: pointer;
+  }
+  .opt:last-child {
+    border-right: 0;
+  }
+  .opt:hover {
+    background: #172236;
+  }
+  .opt.active {
+    background: color-mix(in srgb, var(--accent) 30%, #0b1220);
+    color: #e2e8f0;
+    font-weight: 700;
   }
 </style>

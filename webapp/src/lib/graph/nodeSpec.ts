@@ -1,5 +1,10 @@
 export type NodeKind = "source" | "transform" | "generator" | "filter" | "output";
 
+export interface ParamOption {
+  value: number;
+  label: string;
+}
+
 export interface ParamSpec {
   key: string;
   label: string;
@@ -10,6 +15,7 @@ export interface ParamSpec {
   unit?: string;
   log?: boolean;
   modulatable?: boolean;
+  options?: ParamOption[];
 }
 
 export interface NodeSpec {
