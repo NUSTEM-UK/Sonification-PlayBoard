@@ -1,7 +1,7 @@
 import type * as Tone from "tone";
 import type { NodeKind, NodeSpec } from "../graph/nodeSpec";
 
-export type NodeComponentType = "source" | "transform" | "audio";
+export type NodeComponentType = "source" | "recordedSource" | "transform" | "audio";
 
 export interface NodeUiDefinition {
   componentType: NodeComponentType;
@@ -68,8 +68,8 @@ export abstract class NodeModuleBase {
 }
 
 export class SourceNodeModule extends NodeModuleBase {
-  constructor(spec: NodeSpec) {
-    super(spec, false);
+  constructor(spec: NodeSpec, ui?: Partial<NodeUiDefinition>) {
+    super(spec, false, ui);
   }
 }
 

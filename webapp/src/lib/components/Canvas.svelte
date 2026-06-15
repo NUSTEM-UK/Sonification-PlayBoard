@@ -30,20 +30,37 @@
     e.preventDefault();
     const raw = e.dataTransfer?.getData("application/playboard");
     if (!raw) return;
-    const payload = JSON.parse(raw) as { kind: string; channelId?: string; type?: string };
+    const payload = JSON.parse(raw) as {
+      kind: string;
+      channelId?: string;
+      type?: string;
+      datasetId?: string;
+      columnKey?: string;
+      title?: string;
+      samples?: number[];
+      min?: number;
+      max?: number;
+    };
     const position = screenToFlowPosition({ x: e.clientX, y: e.clientY });
     if (payload.kind === "source" && payload.channelId) {
       graph.addSourceNode(payload.channelId, position);
+    } else if (payload.kind === "recorded-source" && payload.datasetId && payload.columnKey && payload.title) {
+      (graph as any).addRecordedSourceNode(
+        {
+          datasetId: payload.datasetId,
+          columnKey: payload.columnKey,
+          title: payload.title,
+          samples: payload.samples ?? [],
+          min: payload.min ?? 0,
+          max: payload.max ?? 1,
+        },
+        position,
+      );
     } else if (payload.kind === "palette" && payload.type) {
       graph.addPaletteNode(payload.type, position);
     }
-    // Audio is unlocked on first pointerdown (see App.svelte) — `drop` is not a
-    // valid activation gesture, so we deliberately don't resume it here.
   }
 
-  // Re-sync the Tone graph only when the audio topology actually changes
-  // (not on every drag): the signature is a memoised string, so this effect
-  // is skipped while nodes are merely being moved around.
   const sig = $derived(audioTopologySignature(graph.nodes, graph.edges));
   $effect(() => {
     sig;
@@ -75,7 +92,6 @@
     min-width: 0;
     height: 100%;
   }
-  /* Wire styling: signal flows are thin + animated, audio is thick. */
   :global(.svelte-flow .edge-signal .svelte-flow__edge-path) {
     stroke: #a78bfa;
     stroke-width: 1.5;

@@ -3,12 +3,14 @@ import { defaultParams, type NodeKind, type NodeSpec } from "../graph/nodeSpec";
 import {
   AudioNodeModule,
   type AudioUnitFactory,
+  type NodeComponentType,
   type NodeModule,
   type TransformProcessor,
   TransformNodeModule,
 } from "./core";
 
-export type NodeComponentType = "source" | "transform" | "audio";
+export type { NodeComponentType };
+
 export type NodeWellKind = Exclude<NodeKind, "source">;
 
 export interface NodeDataSeed extends Record<string, unknown> {

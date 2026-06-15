@@ -13,13 +13,27 @@ import { SOURCE_SPEC, specFor, type NodeSpec } from "./specs";
 import { getNodeDefinition, NODE_DATA_VERSION } from "../nodes/registry";
 
 export interface NodeData extends Record<string, unknown> {
-  /** The spec key: "source" | "rollingAvg" | "drone" | "lowpass" | … */
+  /** The spec key: "source" | "recordedSource" | "rollingAvg" | "drone" | "lowpass" | … */
   specType: string;
   /** Schema guard for future graph migration support. */
   dataVersion: number;
+  /** Node parameter values keyed by param name. */
   params: Record<string, number>;
   /** Set on source nodes: which gateway channel they read. */
   channelId?: string;
+  /** Set on recorded source nodes. */
+  datasetId?: string;
+  columnKey?: string;
+  /** Source mode; recorded sources use imported CSV series rather than gateway channels. */
+  sourceMode?: "live" | "recorded";
+  /** Imported recorded-series metadata for offline sources. */
+  recorded?: {
+    datasetLabel: string;
+    channelLabel: string;
+    samples: number[];
+    min: number;
+    max: number;
+  };
   /** Display title (source nodes show the channel name). */
   title: string;
 }
@@ -50,10 +64,8 @@ class Graph {
   edges = $state<AppEdge[]>([]);
 
   addSourceNode(channelId: string, position: { x: number; y: number }): void {
-    const title = channelId; // "src/chan"
+    const title = channelId;
     const def = getNodeDefinition(SOURCE_SPEC.type);
-    // Reassign (not push): <SvelteFlow bind:nodes> tracks the array reference,
-    // so an in-place mutation wouldn't be reflected on the canvas.
     this.nodes = [
       ...this.nodes,
       {
@@ -65,15 +77,63 @@ class Graph {
     ];
   }
 
-  addPaletteNode(type: string, position: { x: number; y: number }): void {
-    const def = getNodeDefinition(type);
+  addRecordedSourceNode(
+    payloadOrDatasetId:
+      | {
+          datasetId: string;
+          columnKey: string;
+          title: string;
+          samples: number[];
+          min: number;
+          max: number;
+        }
+      | string,
+    columnKeyOrPosition: string | { x: number; y: number },
+    titleMaybe?: string,
+    positionMaybe?: { x: number; y: number },
+  ): void {
+    const payload =
+      typeof payloadOrDatasetId === "string"
+        ? {
+            datasetId: payloadOrDatasetId,
+            columnKey: columnKeyOrPosition as string,
+            title: titleMaybe ?? String(columnKeyOrPosition),
+            samples: [] as number[],
+            min: 0,
+            max: 1,
+          }
+        : payloadOrDatasetId;
+    const position =
+      typeof payloadOrDatasetId === "string"
+        ? (positionMaybe ?? { x: 0, y: 0 })
+        : (columnKeyOrPosition as { x: number; y: number });
+    const def = getNodeDefinition("recordedSource");
     this.nodes = [
       ...this.nodes,
       {
-        id: nextId(def.type),
+        id: nextId("rec"),
         type: def.componentType,
         position,
-        data: def.createData({ dataVersion: NODE_DATA_VERSION }),
+        data: def.createData({
+          title: payload.title,
+          datasetId: payload.datasetId,
+          columnKey: payload.columnKey,
+          params: {},
+          dataVersion: NODE_DATA_VERSION,
+        }),
+      },
+    ];
+  }
+
+  addPaletteNode(type: string, position: { x: number; y: number }): void {
+    const spec = specFor(type);
+    this.nodes = [
+      ...this.nodes,
+      {
+        id: nextId(spec.type),
+        type: spec.kind === "source" ? "source" : spec.kind === "transform" ? "transform" : "audio",
+        position,
+        data: { specType: spec.type, params: {}, title: spec.label, dataVersion: NODE_DATA_VERSION },
       },
     ];
   }

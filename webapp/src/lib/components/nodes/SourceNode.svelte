@@ -3,14 +3,23 @@
   import { gateway } from "../../serial/gateway.svelte";
   import { SOURCE_SPEC } from "../../graph/specs";
   import { asNodeData } from "./nodeModel";
+  import { datasetStore } from "../../sources/datasets.svelte";
+  import { playback } from "../../sources/playback.svelte";
   import Sparkline from "../Sparkline.svelte";
   import ValueReadout from "../ValueReadout.svelte";
 
   let { id, data }: NodeProps = $props();
   const d = $derived(asNodeData(data));
 
-  const channel = $derived(d.channelId ? gateway.channels[d.channelId] : undefined);
-  const live = $derived(!!d.channelId && gateway.isLive(d.channelId));
+  const live = $derived(d.channelId ? gateway.isLive(d.channelId) : false);
+  const dataset = $derived(d.datasetId ? datasetStore.get(d.datasetId) : undefined);
+  const playbackState = $derived(d.datasetId ? playback.get(d.datasetId) : null);
+  const recordedColumn = $derived(
+    d.datasetId && d.columnKey && dataset ? dataset.columns.find((column) => column.key === d.columnKey) : undefined,
+  );
+  const recordedSample = $derived(
+    d.datasetId && d.columnKey && playbackState && dataset ? datasetStore.getSample(d.datasetId, d.columnKey, playbackState.position) : 0,
+  );
 </script>
 
 <div class="node source" style="--accent:{SOURCE_SPEC.accent}">
@@ -24,13 +33,26 @@
   <div class="row">
     <span class="muted">norm</span>
     <ValueReadout {id} />
-    <span class="muted">raw</span>
-    <span class="raw">{channel ? channel.raw : "—"}</span>
+    {#if d.datasetId && recordedColumn}
+      <span class="muted">raw</span>
+      <span class="raw">{recordedSample.toFixed(2)}</span>
+    {:else}
+      <span class="muted">raw</span>
+      <span class="raw">{d.channelId ? gateway.channels[d.channelId]?.raw ?? "—" : "—"}</span>
+    {/if}
   </div>
 
-  <button class="cal nodrag" onclick={() => d.channelId && gateway.recalibrate(d.channelId)}>
-    Recalibrate range
-  </button>
+  {#if d.datasetId && recordedColumn}
+    <p class="meta">{dataset?.label} • {recordedColumn.label} • {recordedColumn.samples.length} samples</p>
+  {/if}
+
+  {#if d.channelId}
+    <button class="cal nodrag" onclick={() => d.channelId && gateway.recalibrate(d.channelId)}>
+      Recalibrate range
+    </button>
+  {:else}
+    <div class="spacer"></div>
+  {/if}
 
   <Handle type="source" position={Position.Right} id="signal-out" />
 </div>
@@ -84,10 +106,24 @@
   .raw {
     font-variant-numeric: tabular-nums;
     color: #94a3b8;
+    white-space: nowrap;
   }
-  .cal {
+  .meta {
+    margin: 6px 0 0;
+    padding-left: 2px;
+    font-size: 10px;
+    color: #64748b;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .cal,
+  .spacer {
     margin-top: 8px;
     width: 100%;
+    height: 26px;
+  }
+  .cal {
     border: 1px solid #334155;
     background: #1e293b;
     color: #cbd5e1;

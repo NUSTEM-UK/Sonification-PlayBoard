@@ -29,9 +29,9 @@ if (uniqueTypes.size !== discoveredModules.length) {
   throw new Error("Duplicate node type found in node definitions.");
 }
 
-const sourceModules = discoveredModules.filter((m) => m.kind === "source");
+const sourceModules = discoveredModules.filter((m) => m.type === "source");
 if (sourceModules.length !== 1) {
-  throw new Error(`Expected exactly one source node module, found ${sourceModules.length}.`);
+  throw new Error(`Expected exactly one live source node module, found ${sourceModules.length}.`);
 }
 
 export const SOURCE_NODE_MODULE = sourceModules[0];

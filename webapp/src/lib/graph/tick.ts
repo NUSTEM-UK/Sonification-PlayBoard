@@ -19,20 +19,36 @@ import type { AppNode } from "./graph.svelte";
 import { specFor, type ParamSpec } from "./specs";
 import { getNodeDefinition } from "../nodes/registry";
 import { getRuntime, setValue } from "./runtime";
+import { datasetStore } from "../sources/datasets.svelte";
+import { playback } from "../sources/playback.svelte";
 
 const TICK_MS = 33;
 const clamp01 = (v: number) => (v < 0 ? 0 : v > 1 ? 1 : v);
+
+interface RecordedState {
+  index: number;
+}
 
 interface TransformState {
   state: unknown;
 }
 const tStates = new Map<string, TransformState>();
+const recordedStates = new Map<string, RecordedState>();
 
 function transformState(id: string): TransformState {
   let s = tStates.get(id);
   if (!s) {
     s = { state: undefined };
     tStates.set(id, s);
+  }
+  return s;
+}
+
+function recordedState(id: string): RecordedState {
+  let s = recordedStates.get(id);
+  if (!s) {
+    s = { index: -1 };
+    recordedStates.set(id, s);
   }
   return s;
 }
@@ -64,6 +80,20 @@ let timer: ReturnType<typeof setInterval> | null = null;
 function evaluate(): void {
   const nodes = graph.nodes;
   const edges = graph.edges;
+
+  // Advance each recorded dataset once per tick (all columns move together).
+  const seenDatasets = new Set<string>();
+  for (const node of nodes) {
+    if (node.data.specType !== "recordedSource") continue;
+    const did = node.data.datasetId as string | undefined;
+    if (did && !seenDatasets.has(did)) {
+      seenDatasets.add(did);
+      const ds = datasetStore.get(did);
+      if (ds) playback.advance(did, ds.rowCount);
+    }
+  }
+
+  // Stale transform states cleanup
   const liveNodeIds = new Set(nodes.map((n) => n.id));
   for (const id of tStates.keys()) {
     if (!liveNodeIds.has(id)) tStates.delete(id);
@@ -77,6 +107,21 @@ function evaluate(): void {
     if (!node) return 0;
     const kind = specFor(node.data.specType).kind;
     if (kind === "source") {
+      if (node.data.specType === "recordedSource") {
+    const liveNodeIds = new Set(nodes.map((n) => n.id));
+    for (const id of recordedStates.keys()) {
+      if (!liveNodeIds.has(id)) recordedStates.delete(id);
+    }
+        const did = node.data.datasetId as string | undefined;
+        const ck  = node.data.columnKey  as string | undefined;
+        const pb  = did ? playback.get(did) : null;
+        const v   = did && ck && pb !== null
+          ? datasetStore.getNormalized(did, ck, pb.position)
+          : 0;
+        computed.add(id);
+        setValue(id, v);
+        return v;
+      }
       const ch = node.data.channelId ? gateway.channels[node.data.channelId] : undefined;
       const v = ch ? ch.normalized : 0;
       computed.add(id);
