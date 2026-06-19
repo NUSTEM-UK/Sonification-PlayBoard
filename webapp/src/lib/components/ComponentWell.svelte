@@ -1,16 +1,36 @@
 <script lang="ts">
-  import { PALETTE, KIND_ORDER, KIND_LABEL, type NodeSpec } from "../graph/specs";
+  import { getWellGroups, type NodeDefinition } from "../nodes/registry";
 
-  const groups = KIND_ORDER.map((kind) => ({
-    kind,
-    label: KIND_LABEL[kind],
-    specs: PALETTE.filter((s) => s.kind === kind),
-  })).filter((g) => g.specs.length > 0);
+  type Tab = "core" | "transforms" | "filters";
 
-  function onDragStart(e: DragEvent, spec: NodeSpec) {
+  const allGroups = getWellGroups();
+  let activeTab = $state<Tab>("core");
+
+  const groups = $derived.by(() => {
+    const byKind = new Map<string, NodeDefinition[]>();
+    for (const group of allGroups) {
+      byKind.set(group.kind, group.defs);
+    }
+
+    if (activeTab === "core") {
+      const defs = [...(byKind.get("generator") ?? []), ...(byKind.get("output") ?? [])];
+      return defs.length > 0 ? [{ label: "Core", defs }] : [];
+    }
+    if (activeTab === "transforms") {
+      const defs = byKind.get("transform") ?? [];
+      return defs.length > 0 ? [{ label: "Transforms", defs }] : [];
+    }
+    if (activeTab === "filters") {
+      const defs = byKind.get("filter") ?? [];
+      return defs.length > 0 ? [{ label: "Filters", defs }] : [];
+    }
+    return [];
+  });
+
+  function onDragStart(e: DragEvent, def: NodeDefinition) {
     e.dataTransfer?.setData(
       "application/playboard",
-      JSON.stringify({ kind: "palette", type: spec.type }),
+      JSON.stringify({ kind: "palette", type: def.type }),
     );
     if (e.dataTransfer) e.dataTransfer.effectAllowed = "move";
   }
@@ -20,21 +40,28 @@
   <h2>Components</h2>
   <p class="hint">Drag onto the canvas to build a soundscape.</p>
 
-  {#each groups as group (group.kind)}
-    <h3 style="color:{group.specs[0].accent}">{group.label}</h3>
+  <div class="tabs">
+    <button class:active={activeTab === "core"} onclick={() => (activeTab = "core")} style="--tab-accent:#34d399">Core</button>
+    <button class:active={activeTab === "transforms"} onclick={() => (activeTab = "transforms")} style="--tab-accent:#a78bfa">
+      Transforms
+    </button>
+    <button class:active={activeTab === "filters"} onclick={() => (activeTab = "filters")} style="--tab-accent:#fbbf24">Filters</button>
+  </div>
+
+  {#each groups as group (group.label)}
     <div class="items">
-      {#each group.specs as spec (spec.type)}
+      {#each group.defs as def (def.type)}
         <div
           class="item"
-          style="--accent:{spec.accent}"
+          style="--accent:{def.spec.accent}"
           draggable="true"
-          ondragstart={(e) => onDragStart(e, spec)}
-          title={spec.blurb}
+          ondragstart={(e) => onDragStart(e, def)}
+          title={def.spec.blurb}
           role="button"
           tabindex="0"
         >
-          <span class="label">{spec.label}</span>
-          <span class="blurb">{spec.blurb}</span>
+          <span class="label">{def.spec.label}</span>
+          <span class="blurb">{def.spec.blurb}</span>
         </div>
       {/each}
     </div>
@@ -60,11 +87,28 @@
     color: #64748b;
     margin: 0 0 10px;
   }
-  h3 {
-    font-size: 10px;
+  .tabs {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    margin-bottom: 10px;
+  }
+  .tabs button {
+    border: 1px solid #334155;
+    background: #0f172a;
+    color: #94a3b8;
+    border-radius: 6px;
+    padding: 6px 8px;
+    cursor: pointer;
+    font-size: 11px;
+    font-weight: 600;
     text-transform: uppercase;
-    letter-spacing: 0.08em;
-    margin: 14px 0 6px;
+    letter-spacing: 0.04em;
+  }
+  .tabs button.active {
+    background: #1e293b;
+    color: var(--tab-accent);
+    border-color: var(--tab-accent);
   }
   .items {
     display: grid;

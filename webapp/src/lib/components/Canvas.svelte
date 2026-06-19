@@ -11,11 +11,13 @@
   import { audioEngine } from "../audio/engine";
   import SourceNode from "./nodes/SourceNode.svelte";
   import TransformNode from "./nodes/TransformNode.svelte";
+  import AdditionNode from "./nodes/AdditionNode.svelte";
   import AudioNode from "./nodes/AudioNode.svelte";
 
   const nodeTypes = {
     source: SourceNode,
     transform: TransformNode,
+    addition: AdditionNode,
     audio: AudioNode,
   };
 
@@ -30,20 +32,22 @@
     e.preventDefault();
     const raw = e.dataTransfer?.getData("application/playboard");
     if (!raw) return;
-    const payload = JSON.parse(raw) as { kind: string; channelId?: string; type?: string };
+    const payload = JSON.parse(raw) as {
+      kind: string;
+      channelId?: string;
+      type?: string;
+      datasetId?: string;
+    };
     const position = screenToFlowPosition({ x: e.clientX, y: e.clientY });
     if (payload.kind === "source" && payload.channelId) {
       graph.addSourceNode(payload.channelId, position);
+    } else if (payload.kind === "recorded-source" && payload.datasetId) {
+      (graph as any).addRecordedSourceNode(payload.datasetId, position);
     } else if (payload.kind === "palette" && payload.type) {
       graph.addPaletteNode(payload.type, position);
     }
-    // Audio is unlocked on first pointerdown (see App.svelte) — `drop` is not a
-    // valid activation gesture, so we deliberately don't resume it here.
   }
 
-  // Re-sync the Tone graph only when the audio topology actually changes
-  // (not on every drag): the signature is a memoised string, so this effect
-  // is skipped while nodes are merely being moved around.
   const sig = $derived(audioTopologySignature(graph.nodes, graph.edges));
   $effect(() => {
     sig;
@@ -75,7 +79,6 @@
     min-width: 0;
     height: 100%;
   }
-  /* Wire styling: signal flows are thin + animated, audio is thick. */
   :global(.svelte-flow .edge-signal .svelte-flow__edge-path) {
     stroke: #a78bfa;
     stroke-width: 1.5;
@@ -94,5 +97,13 @@
     width: 9px;
     height: 9px;
     background: #a78bfa;
+  }
+  /* Signal in/out handles: default xyflow handles are a 5px dot — too small to
+     reliably drop a connection onto. Give them a proper hit target. */
+  :global(.svelte-flow .h-signal) {
+    width: 11px;
+    height: 11px;
+    background: #a78bfa;
+    border: 2px solid #0b1220;
   }
 </style>

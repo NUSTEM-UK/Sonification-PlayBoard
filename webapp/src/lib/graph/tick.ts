@@ -1,7 +1,9 @@
 /**
  * The signal tick: ~30 times a second, push live data through the graph.
  *
- *   1. Source nodes read their gateway channel's normalised value.
+ *   1. Source nodes read their gateway channel's normalised value. Recorded
+ *      sources read the sample under their playhead — one value per CSV column,
+ *      each exposed on its own output handle.
  *   2. Transform nodes recompute from their upstream signal (rolling average,
  *      rate of change, …), in dependency order, and store their own value +
  *      sparkline history.
@@ -17,60 +19,57 @@ import { audioEngine } from "../audio/engine";
 import { graph, edgeKind } from "./graph.svelte";
 import type { AppNode } from "./graph.svelte";
 import { specFor, type ParamSpec } from "./specs";
-import { getRuntime, setValue } from "./runtime";
+import { getNodeDefinition } from "../nodes/registry";
+import { getRuntime, setValue, outputId } from "./runtime";
+import { datasetStore, type DatasetColumn, type DatasetRecord } from "../sources/datasets.svelte";
+import { playback } from "../sources/playback.svelte";
 
 const TICK_MS = 33;
 const clamp01 = (v: number) => (v < 0 ? 0 : v > 1 ? 1 : v);
 
 interface TransformState {
-  buf: number[];
-  prev: number;
-  ema: number;
-  primed: boolean;
+  state: unknown;
 }
 const tStates = new Map<string, TransformState>();
 
 function transformState(id: string): TransformState {
   let s = tStates.get(id);
   if (!s) {
-    s = { buf: [], prev: 0, ema: 0, primed: false };
+    s = { state: undefined };
     tStates.set(id, s);
   }
   return s;
 }
 
 function applyTransform(node: AppNode, input: number): number {
-  const p = node.data.params;
-  const s = transformState(node.id);
-  if (!s.primed) {
-    s.prev = input;
-    s.ema = input;
-    s.primed = true;
+  const def = getNodeDefinition(node.data.specType);
+  if (!def.processSignal) return input;
+  const store = transformState(node.id);
+  return def.processSignal(input, node.data.params, {
+    clamp01,
+    getState<T>(init: () => T): T {
+      if (store.state === undefined) store.state = init();
+      return store.state as T;
+    },
+  });
+}
+
+/**
+ * Resolve which CSV column a recorded source's output handle refers to.
+ * Handles are "signal-out:<columnKey>"; the bare "signal-out" (legacy edges,
+ * and the node's own default) maps to the node's columnKey or first column.
+ */
+function columnForHandle(
+  node: AppNode,
+  dataset: DatasetRecord,
+  handle: string | null | undefined,
+): DatasetColumn | undefined {
+  if (handle && handle.startsWith("signal-out:")) {
+    const key = handle.slice("signal-out:".length);
+    return dataset.columns.find((c) => c.key === key);
   }
-  switch (node.data.specType) {
-    case "rollingAvg": {
-      const window = Math.max(1, Math.round(p.window ?? 12));
-      s.buf.push(input);
-      while (s.buf.length > window) s.buf.shift();
-      return s.buf.reduce((a, b) => a + b, 0) / s.buf.length;
-    }
-    case "smooth": {
-      const amount = p.amount ?? 0.8;
-      s.ema = amount * s.ema + (1 - amount) * input;
-      return s.ema;
-    }
-    case "differential": {
-      const gain = p.gain ?? 10;
-      const delta = input - s.prev;
-      s.prev = input;
-      return clamp01(0.5 + delta * gain);
-    }
-    case "scale": {
-      return clamp01(input * (p.gain ?? 1) + (p.offset ?? 0));
-    }
-    default:
-      return input;
-  }
+  const fallback = node.data.columnKey;
+  return (fallback && dataset.columns.find((c) => c.key === fallback)) || dataset.columns[0];
 }
 
 /** Map a 0..1 signal onto a parameter's real range (log-aware). */
@@ -87,25 +86,69 @@ let timer: ReturnType<typeof setInterval> | null = null;
 function evaluate(): void {
   const nodes = graph.nodes;
   const edges = graph.edges;
+
+  // Advance each recorded node's own playhead once per tick.
+  for (const node of nodes) {
+    if (node.data.specType !== "recordedSource") continue;
+    const did = node.data.datasetId as string | undefined;
+    const ds = did ? datasetStore.get(did) : undefined;
+    if (ds) playback.advance(node.id, ds.rowCount);
+  }
+
+  // Stale transform states cleanup
+  const liveNodeIds = new Set(nodes.map((n) => n.id));
+  for (const id of tStates.keys()) {
+    if (!liveNodeIds.has(id)) tStates.delete(id);
+  }
   const byId = new Map(nodes.map((n) => [n.id, n]));
   const computed = new Set<string>();
 
-  function valueOf(id: string): number {
-    if (computed.has(id)) return getRuntime(id).value;
+  /**
+   * Resolve a source's output to a 0..1 value. `handle` selects the output on
+   * multi-output nodes (recorded sources); it is ignored elsewhere. Each
+   * resolved value is cached under its runtime id so the sparkline stays live.
+   */
+  function valueOf(id: string, handle?: string | null): number {
     const node = byId.get(id);
     if (!node) return 0;
     const kind = specFor(node.data.specType).kind;
+
     if (kind === "source") {
+      if (node.data.specType === "recordedSource") {
+        const did = node.data.datasetId as string | undefined;
+        const ds = did ? datasetStore.get(did) : undefined;
+        const col = ds ? columnForHandle(node, ds, handle) : undefined;
+        if (!did || !ds || !col) return 0;
+        const runtimeId = outputId(id, col.key);
+        if (computed.has(runtimeId)) return getRuntime(runtimeId).value;
+        const pb = playback.get(id);
+        const v = datasetStore.getNormalized(did, col.key, pb ? pb.position : 0);
+        computed.add(runtimeId);
+        setValue(runtimeId, v);
+        return v;
+      }
+      if (computed.has(id)) return getRuntime(id).value;
       const ch = node.data.channelId ? gateway.channels[node.data.channelId] : undefined;
       const v = ch ? ch.normalized : 0;
       computed.add(id);
       setValue(id, v);
       return v;
     }
+
     if (kind === "transform") {
+      if (computed.has(id)) return getRuntime(id).value;
       computed.add(id); // guards against cycles (falls back to last value)
-      const inEdge = edges.find((e) => e.target === id && e.targetHandle === "signal-in");
-      const input = inEdge ? valueOf(inEdge.source) : 0;
+      let input = 0;
+      if (node.data.specType === "addition") {
+        const inEdgeA = edges.find((e) => e.target === id && e.targetHandle === "signal-in-a");
+        const inEdgeB = edges.find((e) => e.target === id && e.targetHandle === "signal-in-b");
+        const inputA = inEdgeA ? valueOf(inEdgeA.source, inEdgeA.sourceHandle) : 0;
+        const inputB = inEdgeB ? valueOf(inEdgeB.source, inEdgeB.sourceHandle) : 0;
+        input = inputA + inputB;
+      } else {
+        const inEdge = edges.find((e) => e.target === id && e.targetHandle === "signal-in");
+        input = inEdge ? valueOf(inEdge.source, inEdge.sourceHandle) : 0;
+      }
       const out = applyTransform(node, input);
       setValue(id, out);
       return out;
@@ -113,10 +156,20 @@ function evaluate(): void {
     return 0; // audio nodes have no signal output
   }
 
-  // Compute every signal-producing node so sparklines stay live even unwired.
+  // Compute every signal-producing output so sparklines stay live even unwired.
   for (const node of nodes) {
     const kind = specFor(node.data.specType).kind;
-    if (kind === "source" || kind === "transform") valueOf(node.id);
+    if (kind === "transform") {
+      valueOf(node.id);
+    } else if (kind === "source") {
+      if (node.data.specType === "recordedSource") {
+        const did = node.data.datasetId as string | undefined;
+        const ds = did ? datasetStore.get(did) : undefined;
+        if (ds) for (const col of ds.columns) valueOf(node.id, `signal-out:${col.key}`);
+      } else {
+        valueOf(node.id);
+      }
+    }
   }
 
   // Drive parameter modulation from signal→param edges.
@@ -129,7 +182,7 @@ function evaluate(): void {
     if (!target) continue;
     const pspec = specFor(target.data.specType).params.find((pp) => pp.key === key);
     if (!pspec) continue;
-    const value = mapParam(pspec, valueOf(edge.source));
+    const value = mapParam(pspec, valueOf(edge.source, edge.sourceHandle));
     audioEngine.setParam(edge.target, key, value);
   }
 }

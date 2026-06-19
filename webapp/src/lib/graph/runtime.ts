@@ -19,6 +19,15 @@ export interface NodeRuntime {
 
 const runtimes = new Map<string, NodeRuntime>();
 
+/**
+ * Runtime id for one output of a multi-output node. A recorded source exposes
+ * one signal per CSV column, each tracked (and sparkline'd) under its own id.
+ * Single-output nodes just use the bare node id.
+ */
+export function outputId(nodeId: string, channel: string): string {
+  return `${nodeId}::${channel}`;
+}
+
 export function getRuntime(id: string): NodeRuntime {
   let r = runtimes.get(id);
   if (!r) {

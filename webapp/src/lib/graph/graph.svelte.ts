@@ -9,20 +9,33 @@
 
 import type { Edge, Node, Connection, IsValidConnection } from "@xyflow/svelte";
 import { dropRuntime } from "./runtime";
-import {
-  SOURCE_SPEC,
-  defaultParams,
-  specFor,
-  type NodeKind,
-  type NodeSpec,
-} from "./specs";
+import { playback } from "../sources/playback.svelte";
+import { datasetStore } from "../sources/datasets.svelte";
+import { SOURCE_SPEC, specFor, type NodeSpec } from "./specs";
+import { getNodeDefinition, NODE_DATA_VERSION } from "../nodes/registry";
 
 export interface NodeData extends Record<string, unknown> {
-  /** The spec key: "source" | "rollingAvg" | "drone" | "lowpass" | … */
+  /** The spec key: "source" | "recordedSource" | "rollingAvg" | "drone" | "lowpass" | … */
   specType: string;
+  /** Schema guard for future graph migration support. */
+  dataVersion: number;
+  /** Node parameter values keyed by param name. */
   params: Record<string, number>;
   /** Set on source nodes: which gateway channel they read. */
   channelId?: string;
+  /** Set on recorded source nodes. */
+  datasetId?: string;
+  columnKey?: string;
+  /** Source mode; recorded sources use imported CSV series rather than gateway channels. */
+  sourceMode?: "live" | "recorded";
+  /** Imported recorded-series metadata for offline sources. */
+  recorded?: {
+    datasetLabel: string;
+    channelLabel: string;
+    samples: number[];
+    min: number;
+    max: number;
+  };
   /** Display title (source nodes show the channel name). */
   title: string;
 }
@@ -42,13 +55,6 @@ export function edgeKind(edge: Pick<Edge, "targetHandle">): WireKind {
   return edge.targetHandle === "audio-in" ? "audio" : "signal";
 }
 
-/** Svelte Flow component key (the `type` field) for a spec's kind. */
-function componentType(kind: NodeKind): string {
-  if (kind === "source") return "source";
-  if (kind === "transform") return "transform";
-  return "audio"; // generator | filter | output share one component
-}
-
 let counter = 0;
 function nextId(prefix: string): string {
   counter += 1;
@@ -60,29 +66,50 @@ class Graph {
   edges = $state<AppEdge[]>([]);
 
   addSourceNode(channelId: string, position: { x: number; y: number }): void {
-    const title = channelId; // "src/chan"
-    // Reassign (not push): <SvelteFlow bind:nodes> tracks the array reference,
-    // so an in-place mutation wouldn't be reflected on the canvas.
+    const title = channelId;
+    const def = getNodeDefinition(SOURCE_SPEC.type);
     this.nodes = [
       ...this.nodes,
       {
         id: nextId("src"),
-        type: "source",
+        type: def.componentType,
         position,
-        data: { specType: SOURCE_SPEC.type, params: {}, channelId, title },
+        data: def.createData({ title, channelId, params: {}, dataVersion: NODE_DATA_VERSION }),
+      },
+    ];
+  }
+
+  addRecordedSourceNode(datasetId: string, position: { x: number; y: number }): void {
+    const dataset = datasetStore.get(datasetId);
+    if (!dataset) return;
+    const def = getNodeDefinition("recordedSource");
+    const firstColumn = dataset.columns[0];
+    this.nodes = [
+      ...this.nodes,
+      {
+        id: nextId("rec"),
+        type: def.componentType,
+        position,
+        data: def.createData({
+          title: dataset.label,
+          datasetId,
+          columnKey: firstColumn?.key,
+          params: {},
+          dataVersion: NODE_DATA_VERSION,
+        }),
       },
     ];
   }
 
   addPaletteNode(type: string, position: { x: number; y: number }): void {
-    const spec = specFor(type);
+    const def = getNodeDefinition(type);
     this.nodes = [
       ...this.nodes,
       {
-        id: nextId(spec.type),
-        type: componentType(spec.kind),
+        id: nextId(def.spec.type),
+        type: def.componentType,
         position,
-        data: { specType: spec.type, params: defaultParams(spec), title: spec.label },
+        data: def.createData({}),
       },
     ];
   }
@@ -99,7 +126,10 @@ class Graph {
 
   /** Clean up runtime state when Svelte Flow deletes nodes. */
   onDelete(deleted: { nodes: AppNode[] }): void {
-    for (const n of deleted.nodes) dropRuntime(n.id);
+    for (const n of deleted.nodes) {
+      dropRuntime(n.id);
+      playback.remove(n.id);
+    }
   }
 }
 
@@ -122,9 +152,9 @@ export function decorateConnection(connection: Connection): Edge {
 export const isValidConnection: IsValidConnection = (c) => {
   const src = c.sourceHandle ?? "";
   const tgt = c.targetHandle ?? "";
-  const sourceIsSignal = src === "signal-out";
+  const sourceIsSignal = src === "signal-out" || src.startsWith("signal-out:");
   const sourceIsAudio = src === "audio-out";
-  const targetIsSignal = tgt === "signal-in" || tgt.startsWith("param:");
+  const targetIsSignal = tgt === "signal-in" || tgt.startsWith("signal-in-") || tgt.startsWith("param:");
   const targetIsAudio = tgt === "audio-in";
   if (sourceIsSignal && targetIsSignal) return true;
   if (sourceIsAudio && targetIsAudio) return true;
