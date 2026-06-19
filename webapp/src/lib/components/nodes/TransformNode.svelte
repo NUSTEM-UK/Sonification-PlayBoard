@@ -7,6 +7,12 @@
   let { id, data }: NodeProps = $props();
   const d = $derived(asNodeData(data));
   const spec = $derived(nodeSpec(d));
+
+  function selectedOptionLabel(paramKey: string, value: number): string | null {
+    const param = spec.params.find((p) => p.key === paramKey);
+    const opt = param?.options?.find((o) => o.value === Math.round(value));
+    return opt?.label ?? null;
+  }
 </script>
 
 <div class="node transform" style="--accent:{spec.accent}">
@@ -29,7 +35,7 @@
           step={p.step ?? 0.01}
           bind:value={d.params[p.key]}
         />
-        <span class="pval">{formatParamValue(d.params[p.key], p.step)}</span>
+        <span class="pval">{selectedOptionLabel(p.key, d.params[p.key]) ?? formatParamValue(d.params[p.key], p.step)}</span>
       </label>
     {/each}
   </div>
