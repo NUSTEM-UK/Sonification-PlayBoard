@@ -138,8 +138,17 @@ function evaluate(): void {
     if (kind === "transform") {
       if (computed.has(id)) return getRuntime(id).value;
       computed.add(id); // guards against cycles (falls back to last value)
-      const inEdge = edges.find((e) => e.target === id && e.targetHandle === "signal-in");
-      const input = inEdge ? valueOf(inEdge.source, inEdge.sourceHandle) : 0;
+      let input = 0;
+      if (node.data.specType === "addition") {
+        const inEdgeA = edges.find((e) => e.target === id && e.targetHandle === "signal-in-a");
+        const inEdgeB = edges.find((e) => e.target === id && e.targetHandle === "signal-in-b");
+        const inputA = inEdgeA ? valueOf(inEdgeA.source, inEdgeA.sourceHandle) : 0;
+        const inputB = inEdgeB ? valueOf(inEdgeB.source, inEdgeB.sourceHandle) : 0;
+        input = inputA + inputB;
+      } else {
+        const inEdge = edges.find((e) => e.target === id && e.targetHandle === "signal-in");
+        input = inEdge ? valueOf(inEdge.source, inEdge.sourceHandle) : 0;
+      }
       const out = applyTransform(node, input);
       setValue(id, out);
       return out;

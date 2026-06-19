@@ -1,7 +1,7 @@
 import type * as Tone from "tone";
 import type { NodeKind, NodeSpec } from "../graph/nodeSpec";
 
-export type NodeComponentType = "source" | "recordedSource" | "transform" | "audio";
+export type NodeComponentType = "source" | "recordedSource" | "transform" | "addition" | "audio";
 
 export interface NodeUiDefinition {
   componentType: NodeComponentType;
@@ -78,8 +78,9 @@ export class TransformNodeModule extends NodeModuleBase {
     spec: NodeSpec,
     public readonly processSignal: TransformProcessor,
     enabledInWell = true,
+    ui?: Partial<NodeUiDefinition>,
   ) {
-    super(spec, enabledInWell);
+    super(spec, enabledInWell, ui);
   }
 }
 

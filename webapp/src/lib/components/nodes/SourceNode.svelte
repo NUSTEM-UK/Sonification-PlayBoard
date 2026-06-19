@@ -62,7 +62,7 @@
             <ValueReadout id={outputId(id, column.key)} />
           </div>
           <Sparkline id={outputId(id, column.key)} accent={SOURCE_SPEC.accent} height={24} />
-          <Handle type="source" position={Position.Right} id={`signal-out:${column.key}`} />
+          <Handle type="source" position={Position.Right} id={`signal-out:${column.key}`} class="h-signal" />
         </div>
       {/each}
     </div>
@@ -84,7 +84,7 @@
       <div class="spacer"></div>
     {/if}
 
-    <Handle type="source" position={Position.Right} id="signal-out" />
+    <Handle type="source" position={Position.Right} id="signal-out" class="h-signal" />
   {/if}
 </div>
 

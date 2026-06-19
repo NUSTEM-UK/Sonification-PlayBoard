@@ -9,7 +9,7 @@
   const spec = $derived(nodeSpec(d));
 </script>
 
-<div class="node transform" style="--accent:{spec.accent}">
+<div class="node" style="--accent:{spec.accent}">
   <header>
     <span class="title">{spec.label}</span>
     <ValueReadout {id} />
@@ -17,24 +17,32 @@
 
   <Sparkline {id} accent={spec.accent} />
 
-  <div class="params">
-    {#each spec.params as p (p.key)}
-      <label class="param">
-        <span class="pname">{p.label}</span>
-        <input
-          class="nodrag"
-          type="range"
-          min={p.min}
-          max={p.max}
-          step={p.step ?? 0.01}
-          bind:value={d.params[p.key]}
-        />
-        <span class="pval">{formatParamValue(d.params[p.key], p.step)}</span>
-      </label>
-    {/each}
-  </div>
+  {#each [{ label: "In 1", handleId: "signal-in-a", gainKey: "gain1", offsetKey: "offset1" }, { label: "In 2", handleId: "signal-in-b", gainKey: "gain2", offsetKey: "offset2" }] as grp (grp.handleId)}
+    <div class="group">
+      <div class="group-label">
+        {grp.label}
+        <Handle type="target" position={Position.Left} id={grp.handleId} class="h-signal" />
+      </div>
+      {#each [{ key: grp.gainKey, label: "Gain" }, { key: grp.offsetKey, label: "Offset" }] as p (p.key)}
+        {@const pspec = spec.params.find(pp => pp.key === p.key)}
+        {#if pspec}
+          <label class="param">
+            <span class="pname">{p.label}</span>
+            <input
+              class="nodrag"
+              type="range"
+              min={pspec.min}
+              max={pspec.max}
+              step={pspec.step ?? 0.01}
+              bind:value={d.params[p.key]}
+            />
+            <span class="pval">{formatParamValue(d.params[p.key], pspec.step)}</span>
+          </label>
+        {/if}
+      {/each}
+    </div>
+  {/each}
 
-  <Handle type="target" position={Position.Left} id="signal-in" class="h-signal" />
   <Handle type="source" position={Position.Right} id="signal-out" class="h-signal" />
 </div>
 
@@ -61,16 +69,25 @@
     font-weight: 600;
     color: var(--accent);
   }
-  .params {
-    margin-top: 8px;
-    display: grid;
-    gap: 5px;
+  .group {
+    margin-top: 10px;
+    border-left: 2px solid #1e293b;
+  }
+  .group-label {
+    position: relative;
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--accent);
+    margin-bottom: 5px;
+    padding: 2px 0 2px 6px;
   }
   .param {
     display: grid;
-    grid-template-columns: 74px 1fr 46px;
+    grid-template-columns: 54px 1fr 40px;
     align-items: center;
     gap: 6px;
+    margin-bottom: 4px;
     padding-left: 6px;
   }
   .pname {

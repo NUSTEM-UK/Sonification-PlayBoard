@@ -102,14 +102,14 @@ class Graph {
   }
 
   addPaletteNode(type: string, position: { x: number; y: number }): void {
-    const spec = specFor(type);
+    const def = getNodeDefinition(type);
     this.nodes = [
       ...this.nodes,
       {
-        id: nextId(spec.type),
-        type: spec.kind === "source" ? "source" : spec.kind === "transform" ? "transform" : "audio",
+        id: nextId(def.spec.type),
+        type: def.componentType,
         position,
-        data: { specType: spec.type, params: {}, title: spec.label, dataVersion: NODE_DATA_VERSION },
+        data: def.createData({}),
       },
     ];
   }
@@ -154,7 +154,7 @@ export const isValidConnection: IsValidConnection = (c) => {
   const tgt = c.targetHandle ?? "";
   const sourceIsSignal = src === "signal-out" || src.startsWith("signal-out:");
   const sourceIsAudio = src === "audio-out";
-  const targetIsSignal = tgt === "signal-in" || tgt.startsWith("param:");
+  const targetIsSignal = tgt === "signal-in" || tgt.startsWith("signal-in-") || tgt.startsWith("param:");
   const targetIsAudio = tgt === "audio-in";
   if (sourceIsSignal && targetIsSignal) return true;
   if (sourceIsAudio && targetIsAudio) return true;

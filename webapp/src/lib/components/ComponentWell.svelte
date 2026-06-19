@@ -41,11 +41,11 @@
   <p class="hint">Drag onto the canvas to build a soundscape.</p>
 
   <div class="tabs">
-    <button class:active={activeTab === "core"} onclick={() => (activeTab = "core")}>Core</button>
-    <button class:active={activeTab === "transforms"} onclick={() => (activeTab = "transforms")}>
+    <button class:active={activeTab === "core"} onclick={() => (activeTab = "core")} style="--tab-accent:#34d399">Core</button>
+    <button class:active={activeTab === "transforms"} onclick={() => (activeTab = "transforms")} style="--tab-accent:#a78bfa">
       Transforms
     </button>
-    <button class:active={activeTab === "filters"} onclick={() => (activeTab = "filters")}>Filters</button>
+    <button class:active={activeTab === "filters"} onclick={() => (activeTab = "filters")} style="--tab-accent:#fbbf24">Filters</button>
   </div>
 
   {#each groups as group (group.label)}
@@ -107,8 +107,8 @@
   }
   .tabs button.active {
     background: #1e293b;
-    color: #e2e8f0;
-    border-color: #38bdf8;
+    color: var(--tab-accent);
+    border-color: var(--tab-accent);
   }
   .items {
     display: grid;

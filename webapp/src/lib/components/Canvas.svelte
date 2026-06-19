@@ -11,11 +11,13 @@
   import { audioEngine } from "../audio/engine";
   import SourceNode from "./nodes/SourceNode.svelte";
   import TransformNode from "./nodes/TransformNode.svelte";
+  import AdditionNode from "./nodes/AdditionNode.svelte";
   import AudioNode from "./nodes/AudioNode.svelte";
 
   const nodeTypes = {
     source: SourceNode,
     transform: TransformNode,
+    addition: AdditionNode,
     audio: AudioNode,
   };
 
@@ -95,5 +97,13 @@
     width: 9px;
     height: 9px;
     background: #a78bfa;
+  }
+  /* Signal in/out handles: default xyflow handles are a 5px dot — too small to
+     reliably drop a connection onto. Give them a proper hit target. */
+  :global(.svelte-flow .h-signal) {
+    width: 11px;
+    height: 11px;
+    background: #a78bfa;
+    border: 2px solid #0b1220;
   }
 </style>
