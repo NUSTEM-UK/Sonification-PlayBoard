@@ -35,27 +35,12 @@
       channelId?: string;
       type?: string;
       datasetId?: string;
-      columnKey?: string;
-      title?: string;
-      samples?: number[];
-      min?: number;
-      max?: number;
     };
     const position = screenToFlowPosition({ x: e.clientX, y: e.clientY });
     if (payload.kind === "source" && payload.channelId) {
       graph.addSourceNode(payload.channelId, position);
-    } else if (payload.kind === "recorded-source" && payload.datasetId && payload.columnKey && payload.title) {
-      (graph as any).addRecordedSourceNode(
-        {
-          datasetId: payload.datasetId,
-          columnKey: payload.columnKey,
-          title: payload.title,
-          samples: payload.samples ?? [],
-          min: payload.min ?? 0,
-          max: payload.max ?? 1,
-        },
-        position,
-      );
+    } else if (payload.kind === "recorded-source" && payload.datasetId) {
+      (graph as any).addRecordedSourceNode(payload.datasetId, position);
     } else if (payload.kind === "palette" && payload.type) {
       graph.addPaletteNode(payload.type, position);
     }

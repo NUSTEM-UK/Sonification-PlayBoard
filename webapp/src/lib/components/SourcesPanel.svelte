@@ -12,25 +12,12 @@
     if (e.dataTransfer) e.dataTransfer.effectAllowed = "move";
   }
 
-  function onDragStartRecorded(
-    e: DragEvent,
-    datasetId: string,
-    columnKey: string,
-    title: string,
-    samples: number[],
-    min: number,
-    max: number,
-  ) {
+  function onDragStartRecorded(e: DragEvent, datasetId: string) {
     e.dataTransfer?.setData(
       "application/playboard",
       JSON.stringify({
         kind: "recorded-source",
         datasetId,
-        columnKey,
-        title,
-        samples,
-        min,
-        max,
       }),
     );
     if (e.dataTransfer) e.dataTransfer.effectAllowed = "move";
@@ -87,7 +74,7 @@
         <input type="file" accept=".csv,text/csv" onchange={onCsvChosen} />
         <span>Import CSV</span>
       </label>
-      <p class="sub">Each numeric column becomes a recorded channel you can drag onto the canvas.</p>
+      <p class="sub">Drag a dataset onto the canvas to create one node with all its data series.</p>
     </div>
 
     {#if datasetStore.datasets.length === 0}
@@ -95,29 +82,22 @@
     {:else}
       {#each datasetStore.datasets as dataset (dataset.id)}
         <section class="dataset">
-          <header>
+          <header
+            role="button"
+            tabindex="0"
+            draggable="true"
+            ondragstart={(e) => onDragStartRecorded(e, dataset.id)}
+            title="Drag onto the canvas to create one node with all series"
+          >
             <strong>{dataset.label}</strong>
-            <span>{dataset.rowCount} rows</span>
+            <span>{dataset.columns.length} series</span>
           </header>
-          <ul>
+          <ul class="series-list">
             {#each dataset.columns as column (column.key)}
-              <li
-                draggable="true"
-                ondragstart={(e) =>
-                  onDragStartRecorded(
-                    e,
-                    dataset.id,
-                    column.key,
-                    `${dataset.label}: ${column.label}`,
-                    column.samples,
-                    column.min,
-                    column.max,
-                  )}
-                title="Drag onto the canvas"
-              >
-                <span class="dot recorded"></span>
-                <span class="name">{column.label}</span>
-                <span class="raw">{column.samples.length} pts</span>
+              <li>
+                <span class="col-dot"></span>
+                <span class="col-name">{column.label}</span>
+                <span class="col-count">{column.samples.length} pts</span>
               </li>
             {/each}
           </ul>
@@ -200,7 +180,7 @@
     display: grid;
     gap: 6px;
   }
-  li {
+  ul:not(.series-list) li {
     display: flex;
     align-items: center;
     gap: 8px;
@@ -210,7 +190,7 @@
     border-radius: 8px;
     cursor: grab;
   }
-  li:hover {
+  ul:not(.series-list) li:hover {
     border-color: #38bdf8;
   }
   .dataset {
@@ -218,18 +198,63 @@
   }
   .dataset header {
     display: flex;
-    align-items: baseline;
+    align-items: center;
     justify-content: space-between;
     gap: 8px;
+    padding: 7px 9px;
+    background: #0f172a;
+    border: 1px solid #1e293b;
+    border-radius: 8px;
+    cursor: grab;
     margin: 0 0 6px;
   }
+  .dataset header:hover {
+    border-color: #38bdf8;
+    background: #1a1f3a;
+  }
   .dataset strong {
-    font-size: 11px;
-    color: #e2e8f0;
+    font-size: 12px;
+    color: #cbd5e1;
+    font-weight: 600;
   }
   .dataset header span {
     font-size: 10px;
     color: #64748b;
+    white-space: nowrap;
+  }
+  .series-list {
+    display: grid;
+    gap: 4px;
+    margin-left: 8px;
+    padding: 0;
+    list-style: none;
+  }
+  .series-list li {
+    padding: 5px 8px;
+    background: transparent;
+    border: 1px solid #1e293b;
+    cursor: default;
+  }
+  .series-list li:hover {
+    border-color: #334155;
+  }
+  .col-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: #f59e0b;
+    flex: none;
+  }
+  .col-name {
+    font-size: 11px;
+    flex: 1;
+    color: #94a3b8;
+  }
+  .col-count {
+    font-size: 10px;
+    color: #64748b;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
   }
   .dot {
     width: 8px;
@@ -241,10 +266,6 @@
   .dot.live {
     background: #22c55e;
     box-shadow: 0 0 6px #22c55e;
-  }
-  .dot.recorded {
-    background: #f59e0b;
-    box-shadow: 0 0 6px rgba(245, 158, 11, 0.5);
   }
   .name {
     font-size: 12px;

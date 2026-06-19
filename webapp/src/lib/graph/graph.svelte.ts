@@ -10,6 +10,7 @@
 import type { Edge, Node, Connection, IsValidConnection } from "@xyflow/svelte";
 import { dropRuntime } from "./runtime";
 import { playback } from "../sources/playback.svelte";
+import { datasetStore } from "../sources/datasets.svelte";
 import { SOURCE_SPEC, specFor, type NodeSpec } from "./specs";
 import { getNodeDefinition, NODE_DATA_VERSION } from "../nodes/registry";
 
@@ -78,37 +79,11 @@ class Graph {
     ];
   }
 
-  addRecordedSourceNode(
-    payloadOrDatasetId:
-      | {
-          datasetId: string;
-          columnKey: string;
-          title: string;
-          samples: number[];
-          min: number;
-          max: number;
-        }
-      | string,
-    columnKeyOrPosition: string | { x: number; y: number },
-    titleMaybe?: string,
-    positionMaybe?: { x: number; y: number },
-  ): void {
-    const payload =
-      typeof payloadOrDatasetId === "string"
-        ? {
-            datasetId: payloadOrDatasetId,
-            columnKey: columnKeyOrPosition as string,
-            title: titleMaybe ?? String(columnKeyOrPosition),
-            samples: [] as number[],
-            min: 0,
-            max: 1,
-          }
-        : payloadOrDatasetId;
-    const position =
-      typeof payloadOrDatasetId === "string"
-        ? (positionMaybe ?? { x: 0, y: 0 })
-        : (columnKeyOrPosition as { x: number; y: number });
+  addRecordedSourceNode(datasetId: string, position: { x: number; y: number }): void {
+    const dataset = datasetStore.get(datasetId);
+    if (!dataset) return;
     const def = getNodeDefinition("recordedSource");
+    const firstColumn = dataset.columns[0];
     this.nodes = [
       ...this.nodes,
       {
@@ -116,9 +91,9 @@ class Graph {
         type: def.componentType,
         position,
         data: def.createData({
-          title: payload.title,
-          datasetId: payload.datasetId,
-          columnKey: payload.columnKey,
+          title: dataset.label,
+          datasetId,
+          columnKey: firstColumn?.key,
           params: {},
           dataVersion: NODE_DATA_VERSION,
         }),
