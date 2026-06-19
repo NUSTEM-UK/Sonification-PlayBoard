@@ -12,7 +12,7 @@ const spec: NodeSpec = {
   type: "oscillator",
   kind: "generator",
   label: "Oscillator",
-  blurb: "Selectable waveform oscillator (0=sine, 1=square, 2=saw).",
+  blurb: "Selectable waveform oscillator",
   accent: ACCENT.generator,
   hasAudioOut: true,
   params: [

@@ -1,7 +1,9 @@
 /**
  * The signal tick: ~30 times a second, push live data through the graph.
  *
- *   1. Source nodes read their gateway channel's normalised value.
+ *   1. Source nodes read their gateway channel's normalised value. Recorded
+ *      sources read the sample under their playhead — one value per CSV column,
+ *      each exposed on its own output handle.
  *   2. Transform nodes recompute from their upstream signal (rolling average,
  *      rate of change, …), in dependency order, and store their own value +
  *      sparkline history.
@@ -18,37 +20,23 @@ import { graph, edgeKind } from "./graph.svelte";
 import type { AppNode } from "./graph.svelte";
 import { specFor, type ParamSpec } from "./specs";
 import { getNodeDefinition } from "../nodes/registry";
-import { getRuntime, setValue } from "./runtime";
-import { datasetStore } from "../sources/datasets.svelte";
+import { getRuntime, setValue, outputId } from "./runtime";
+import { datasetStore, type DatasetColumn, type DatasetRecord } from "../sources/datasets.svelte";
 import { playback } from "../sources/playback.svelte";
 
 const TICK_MS = 33;
 const clamp01 = (v: number) => (v < 0 ? 0 : v > 1 ? 1 : v);
 
-interface RecordedState {
-  index: number;
-}
-
 interface TransformState {
   state: unknown;
 }
 const tStates = new Map<string, TransformState>();
-const recordedStates = new Map<string, RecordedState>();
 
 function transformState(id: string): TransformState {
   let s = tStates.get(id);
   if (!s) {
     s = { state: undefined };
     tStates.set(id, s);
-  }
-  return s;
-}
-
-function recordedState(id: string): RecordedState {
-  let s = recordedStates.get(id);
-  if (!s) {
-    s = { index: -1 };
-    recordedStates.set(id, s);
   }
   return s;
 }
@@ -66,6 +54,24 @@ function applyTransform(node: AppNode, input: number): number {
   });
 }
 
+/**
+ * Resolve which CSV column a recorded source's output handle refers to.
+ * Handles are "signal-out:<columnKey>"; the bare "signal-out" (legacy edges,
+ * and the node's own default) maps to the node's columnKey or first column.
+ */
+function columnForHandle(
+  node: AppNode,
+  dataset: DatasetRecord,
+  handle: string | null | undefined,
+): DatasetColumn | undefined {
+  if (handle && handle.startsWith("signal-out:")) {
+    const key = handle.slice("signal-out:".length);
+    return dataset.columns.find((c) => c.key === key);
+  }
+  const fallback = node.data.columnKey;
+  return (fallback && dataset.columns.find((c) => c.key === fallback)) || dataset.columns[0];
+}
+
 /** Map a 0..1 signal onto a parameter's real range (log-aware). */
 function mapParam(p: ParamSpec, signal: number): number {
   const s = clamp01(signal);
@@ -81,16 +87,12 @@ function evaluate(): void {
   const nodes = graph.nodes;
   const edges = graph.edges;
 
-  // Advance each recorded dataset once per tick (all columns move together).
-  const seenDatasets = new Set<string>();
+  // Advance each recorded node's own playhead once per tick.
   for (const node of nodes) {
     if (node.data.specType !== "recordedSource") continue;
     const did = node.data.datasetId as string | undefined;
-    if (did && !seenDatasets.has(did)) {
-      seenDatasets.add(did);
-      const ds = datasetStore.get(did);
-      if (ds) playback.advance(did, ds.rowCount);
-    }
+    const ds = did ? datasetStore.get(did) : undefined;
+    if (ds) playback.advance(node.id, ds.rowCount);
   }
 
   // Stale transform states cleanup
@@ -101,37 +103,43 @@ function evaluate(): void {
   const byId = new Map(nodes.map((n) => [n.id, n]));
   const computed = new Set<string>();
 
-  function valueOf(id: string): number {
-    if (computed.has(id)) return getRuntime(id).value;
+  /**
+   * Resolve a source's output to a 0..1 value. `handle` selects the output on
+   * multi-output nodes (recorded sources); it is ignored elsewhere. Each
+   * resolved value is cached under its runtime id so the sparkline stays live.
+   */
+  function valueOf(id: string, handle?: string | null): number {
     const node = byId.get(id);
     if (!node) return 0;
     const kind = specFor(node.data.specType).kind;
+
     if (kind === "source") {
       if (node.data.specType === "recordedSource") {
-    const liveNodeIds = new Set(nodes.map((n) => n.id));
-    for (const id of recordedStates.keys()) {
-      if (!liveNodeIds.has(id)) recordedStates.delete(id);
-    }
         const did = node.data.datasetId as string | undefined;
-        const ck  = node.data.columnKey  as string | undefined;
-        const pb  = did ? playback.get(did) : null;
-        const v   = did && ck && pb !== null
-          ? datasetStore.getNormalized(did, ck, pb.position)
-          : 0;
-        computed.add(id);
-        setValue(id, v);
+        const ds = did ? datasetStore.get(did) : undefined;
+        const col = ds ? columnForHandle(node, ds, handle) : undefined;
+        if (!did || !ds || !col) return 0;
+        const runtimeId = outputId(id, col.key);
+        if (computed.has(runtimeId)) return getRuntime(runtimeId).value;
+        const pb = playback.get(id);
+        const v = datasetStore.getNormalized(did, col.key, pb ? pb.position : 0);
+        computed.add(runtimeId);
+        setValue(runtimeId, v);
         return v;
       }
+      if (computed.has(id)) return getRuntime(id).value;
       const ch = node.data.channelId ? gateway.channels[node.data.channelId] : undefined;
       const v = ch ? ch.normalized : 0;
       computed.add(id);
       setValue(id, v);
       return v;
     }
+
     if (kind === "transform") {
+      if (computed.has(id)) return getRuntime(id).value;
       computed.add(id); // guards against cycles (falls back to last value)
       const inEdge = edges.find((e) => e.target === id && e.targetHandle === "signal-in");
-      const input = inEdge ? valueOf(inEdge.source) : 0;
+      const input = inEdge ? valueOf(inEdge.source, inEdge.sourceHandle) : 0;
       const out = applyTransform(node, input);
       setValue(id, out);
       return out;
@@ -139,10 +147,20 @@ function evaluate(): void {
     return 0; // audio nodes have no signal output
   }
 
-  // Compute every signal-producing node so sparklines stay live even unwired.
+  // Compute every signal-producing output so sparklines stay live even unwired.
   for (const node of nodes) {
     const kind = specFor(node.data.specType).kind;
-    if (kind === "source" || kind === "transform") valueOf(node.id);
+    if (kind === "transform") {
+      valueOf(node.id);
+    } else if (kind === "source") {
+      if (node.data.specType === "recordedSource") {
+        const did = node.data.datasetId as string | undefined;
+        const ds = did ? datasetStore.get(did) : undefined;
+        if (ds) for (const col of ds.columns) valueOf(node.id, `signal-out:${col.key}`);
+      } else {
+        valueOf(node.id);
+      }
+    }
   }
 
   // Drive parameter modulation from signal→param edges.
@@ -155,7 +173,7 @@ function evaluate(): void {
     if (!target) continue;
     const pspec = specFor(target.data.specType).params.find((pp) => pp.key === key);
     if (!pspec) continue;
-    const value = mapParam(pspec, valueOf(edge.source));
+    const value = mapParam(pspec, valueOf(edge.source, edge.sourceHandle));
     audioEngine.setParam(edge.target, key, value);
   }
 }

@@ -99,8 +99,9 @@ class DatasetStore {
     const dataset = this.get(datasetId);
     const column = dataset?.columns.find((entry) => entry.key === columnKey);
     if (!dataset || !column || column.samples.length === 0) return 0;
-    const index = position % column.samples.length;
-    return column.samples[index < 0 ? index + column.samples.length : index] ?? 0;
+    const len = column.samples.length;
+    const index = Math.floor(position) % len;
+    return column.samples[index < 0 ? index + len : index] ?? 0;
   }
 
   getNormalized(datasetId: string, columnKey: string, position: number): number {

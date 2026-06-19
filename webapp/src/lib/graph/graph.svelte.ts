@@ -9,6 +9,7 @@
 
 import type { Edge, Node, Connection, IsValidConnection } from "@xyflow/svelte";
 import { dropRuntime } from "./runtime";
+import { playback } from "../sources/playback.svelte";
 import { SOURCE_SPEC, specFor, type NodeSpec } from "./specs";
 import { getNodeDefinition, NODE_DATA_VERSION } from "../nodes/registry";
 
@@ -150,7 +151,10 @@ class Graph {
 
   /** Clean up runtime state when Svelte Flow deletes nodes. */
   onDelete(deleted: { nodes: AppNode[] }): void {
-    for (const n of deleted.nodes) dropRuntime(n.id);
+    for (const n of deleted.nodes) {
+      dropRuntime(n.id);
+      playback.remove(n.id);
+    }
   }
 }
 
@@ -173,7 +177,7 @@ export function decorateConnection(connection: Connection): Edge {
 export const isValidConnection: IsValidConnection = (c) => {
   const src = c.sourceHandle ?? "";
   const tgt = c.targetHandle ?? "";
-  const sourceIsSignal = src === "signal-out";
+  const sourceIsSignal = src === "signal-out" || src.startsWith("signal-out:");
   const sourceIsAudio = src === "audio-out";
   const targetIsSignal = tgt === "signal-in" || tgt.startsWith("param:");
   const targetIsAudio = tgt === "audio-in";
