@@ -1,7 +1,31 @@
 <script lang="ts">
   import { getWellGroups, type NodeDefinition } from "../nodes/registry";
 
-  const groups = getWellGroups();
+  type Tab = "core" | "transforms" | "filters";
+
+  const allGroups = getWellGroups();
+  let activeTab = $state<Tab>("core");
+
+  const groups = $derived.by(() => {
+    const byKind = new Map<string, NodeDefinition[]>();
+    for (const group of allGroups) {
+      byKind.set(group.kind, group.defs);
+    }
+
+    if (activeTab === "core") {
+      const defs = [...(byKind.get("generator") ?? []), ...(byKind.get("output") ?? [])];
+      return defs.length > 0 ? [{ label: "Core", defs }] : [];
+    }
+    if (activeTab === "transforms") {
+      const defs = byKind.get("transform") ?? [];
+      return defs.length > 0 ? [{ label: "Transforms", defs }] : [];
+    }
+    if (activeTab === "filters") {
+      const defs = byKind.get("filter") ?? [];
+      return defs.length > 0 ? [{ label: "Filters", defs }] : [];
+    }
+    return [];
+  });
 
   function onDragStart(e: DragEvent, def: NodeDefinition) {
     e.dataTransfer?.setData(
@@ -16,8 +40,15 @@
   <h2>Components</h2>
   <p class="hint">Drag onto the canvas to build a soundscape.</p>
 
-  {#each groups as group (group.kind)}
-    <h3 style="color:{group.defs[0].spec.accent}">{group.label}</h3>
+  <div class="tabs">
+    <button class:active={activeTab === "core"} onclick={() => (activeTab = "core")}>Core</button>
+    <button class:active={activeTab === "transforms"} onclick={() => (activeTab = "transforms")}>
+      Transforms
+    </button>
+    <button class:active={activeTab === "filters"} onclick={() => (activeTab = "filters")}>Filters</button>
+  </div>
+
+  {#each groups as group (group.label)}
     <div class="items">
       {#each group.defs as def (def.type)}
         <div
@@ -56,11 +87,28 @@
     color: #64748b;
     margin: 0 0 10px;
   }
-  h3 {
-    font-size: 10px;
+  .tabs {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    margin-bottom: 10px;
+  }
+  .tabs button {
+    border: 1px solid #334155;
+    background: #0f172a;
+    color: #94a3b8;
+    border-radius: 6px;
+    padding: 6px 8px;
+    cursor: pointer;
+    font-size: 11px;
+    font-weight: 600;
     text-transform: uppercase;
-    letter-spacing: 0.08em;
-    margin: 14px 0 6px;
+    letter-spacing: 0.04em;
+  }
+  .tabs button.active {
+    background: #1e293b;
+    color: #e2e8f0;
+    border-color: #38bdf8;
   }
   .items {
     display: grid;

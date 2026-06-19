@@ -4,9 +4,9 @@ Refactor to a plugin-style node architecture first, then deliver high-value clas
 
 ### 1. Foundation and Node Architecture
 
-1. Define a node module contract and registry system so each node is represented by a colocated logic + UI module pair.
+1. Define a node module contract and registry system so each node is represented by a colocated logic + UI module pair. @done
 2. Introduce a root node view/model abstraction to standardize shared behavior (title bar, controls, handles, sparkline/value panel, mute/solo support where applicable).
-3. Replace hardcoded palette/spec arrays with registry-driven categories and feature flags for node-well exposure.
+3. Replace hardcoded palette/spec arrays with registry-driven categories and feature flags for node-well exposure. @done
 4. Refactor graph/audio integration to consume registry metadata instead of type switch statements.
 5. Add migration-safe node type identifiers and a schema version field for future preset compatibility.
 
