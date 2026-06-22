@@ -1,17 +1,18 @@
 # Sonification-PlayBoard
 
-A modular playground for **data sonification**: simple sensors drive live,
-expressive audio. Built as a public-engagement proof-of-concept, with schools
-(and micro:bits) as a primary target audience.
+A modular playground for **data sonification**, lashed together as a demo/proof-of-concept project for [Sonic Intangibles](https://sonicintangibles.github.io/) with the intention of exploring its use for public engagement work.
 
-The current design is **browser-native**: a micro:bit gateway streams sensor
-readings over USB serial, and a single Chrome tab does everything else — reads
-the serial port, presents a node-graph UI, and synthesises the sound.
+Core features, at time of writing:
 
-```text
-[micro:bit sources] --radio--> [micro:bit gateway] --USB serial--> [ Chrome web app ]
-   sensors / pins / pins          radio → serial         Web Serial → nodes → Tone.js audio
-```
+- A browser-native, node-graph soundscape builder (Svelte + Tone.js)
+- A micro:bit gateway that relays radio sensor readings from networked micro:bits to the browser, over USB serial
+- Basic support for CSV saved data sources
+- Basic generators (some of which sound... not entirely awful), data manipulation/transformation, and audio filter nodes
+- Automatic range normalisation for input sources
+
+![Screenshot of the web app, showing a node graph with a few nodes and connections, and a sidebar with controls for the selected node](docs/img/Playboard-screenshot.png)
+
+Playboard is available for use at [playboard.nustem.uk](https://playboard.nustem.uk/), and the code is open source under the MIT License.
 
 This collapses the original four-box chain (micro:bit → bridge.py → OSC → Sonic
 Pi) down to two: there is no Python bridge, no OSC, and no Sonic Pi. Chrome's

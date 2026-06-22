@@ -5,5 +5,6 @@ import { svelte } from "@sveltejs/vite-plugin-svelte";
 // open in Chrome (Web Serial requires https or localhost, which `dev`/`preview`
 // both satisfy).
 export default defineConfig({
+  base: "./",
   plugins: [svelte()],
 });
