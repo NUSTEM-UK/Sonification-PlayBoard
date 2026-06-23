@@ -9,6 +9,8 @@ This guide shows one concrete example for each node type in the class-based node
 
 All examples live under src/lib/nodes/definitions and each file exports a single NODE_MODULE.
 
+Audio generation relies on [Tone.js](https://tonejs.github.io/): consult the Tone.js docs for [API details](https://tonejs.github.io/docs/15.1.22/index.html) and [code examples](https://tonejs.github.io/examples/). It ought to be relatively easy to add new nodes leaning on Tone.js examples for, for example, more musical-sounding generators.
+
 ## Mental Model
 
 A node module file owns:
