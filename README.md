@@ -5,7 +5,7 @@ A modular playground for **data sonification**, lashed together as a demo/proof-
 Core features, at time of writing:
 
 - A browser-native, node-graph soundscape builder (Svelte + Tone.js)
-- A micro:bit gateway that relays radio sensor readings from networked micro:bits to the browser, over USB serial
+- A micro:bit gateway that relays sensor readings from networked micro:bits to the browser, over USB serial
 - Basic support for CSV saved data sources
 - Basic generators (some of which sound... not entirely awful), data manipulation/transformation, and audio filter nodes
 - Automatic range normalisation for input sources
@@ -54,6 +54,8 @@ To the original author this makes sense: you acquire data, process it, sonify it
 I have, however, been caught out by the inability to apply Transforms to audio nodes. The app tries to prompt about this by showing different kinds of affordance and connection colours/animations, but some work is likely needed here to make the distinction clearer.
 
 ## Quick start
+
+You'll need `npm`, usually installed as part of a Node.js installation. If you don't have it, see [https://nodejs.org/en/download/](https://nodejs.org/en/download/).
 
 ```bash
 cd webapp
