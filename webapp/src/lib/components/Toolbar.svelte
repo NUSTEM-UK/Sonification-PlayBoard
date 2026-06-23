@@ -2,6 +2,18 @@
   import { gateway } from "../serial/gateway.svelte";
   import { audioEngine } from "../audio/engine";
   import { audioState } from "../audio/audioState.svelte";
+  import { graph } from "../graph/graph.svelte";
+
+  let loadError = "";
+
+  async function handleLoad() {
+    try {
+      loadError = "";
+      await graph.load();
+    } catch (err) {
+      loadError = err instanceof Error ? err.message : String(err);
+    }
+  }
 
   const statusLabel: Record<string, string> = {
     disconnected: "Disconnected",
@@ -35,6 +47,13 @@
     <button onclick={() => gateway.startMock()}>Mock data</button>
     {#if gateway.status === "live" || gateway.status === "mock"}
       <button onclick={() => gateway.disconnect()}>Stop</button>
+    {/if}
+
+    <div class="divider"></div>
+    <button onclick={() => graph.save()}>💾 Save</button>
+    <button onclick={handleLoad}>📂 Load</button>
+    {#if loadError}
+      <span class="err" title={loadError}>⚠</span>
     {/if}
   </div>
 </header>
@@ -113,5 +132,16 @@
   }
   button.stop:hover {
     background: #1c4a2c;
+  }
+  .divider {
+    width: 1px;
+    height: 24px;
+    background: #334155;
+    margin: 0 4px;
+  }
+  span.err {
+    color: #f87171;
+    cursor: help;
+    font-size: 13px;
   }
 </style>
