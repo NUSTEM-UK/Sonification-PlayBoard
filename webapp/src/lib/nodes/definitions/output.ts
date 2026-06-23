@@ -2,7 +2,7 @@ import { ACCENT, type NodeSpec } from "../../graph/nodeSpec";
 import { AudioNodeModule } from "../core";
 
 const spec: NodeSpec = {
-  type: "master",
+  type: "output",
   kind: "output",
   label: "Output",
   blurb: "Everything that reaches here is heard.",

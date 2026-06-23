@@ -13,6 +13,7 @@ import { playback } from "../sources/playback.svelte";
 import { datasetStore } from "../sources/datasets.svelte";
 import { SOURCE_SPEC, specFor, type NodeSpec } from "./specs";
 import { getNodeDefinition, NODE_DATA_VERSION } from "../nodes/registry";
+import { downloadGraph, uploadGraph } from "./persistence";
 
 export interface NodeData extends Record<string, unknown> {
   /** The spec key: "source" | "recordedSource" | "rollingAvg" | "drone" | "lowpass" | … */
@@ -129,6 +130,23 @@ class Graph {
     for (const n of deleted.nodes) {
       dropRuntime(n.id);
       playback.remove(n.id);
+    }
+  }
+
+  /** Download current graph as JSON file. */
+  save(filename?: string): void {
+    downloadGraph(this.nodes, this.edges, filename);
+  }
+
+  /** Load graph from a JSON file and replace current graph. */
+  async load(): Promise<void> {
+    try {
+      const snapshot = await uploadGraph();
+      this.nodes = snapshot.nodes;
+      this.edges = snapshot.edges;
+      counter = Math.max(...this.nodes.map((n) => parseInt(n.id.split("-")[1], 10)), 0);
+    } catch (err) {
+      throw new Error(`Failed to load graph: ${err}`);
     }
   }
 }
