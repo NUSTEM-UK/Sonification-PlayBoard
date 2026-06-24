@@ -1,14 +1,10 @@
 // =====================================================================
-// PlayBoard HUB / SINK  (MakeCode for micro:bit -- JavaScript view)
+// PlayBoard Bridge  (MakeCode for micro:bit -- JavaScript view)
 //
 // Receives sensor messages over micro:bit radio and relays them, verbatim,
 // to USB serial as PlayBoard protocol lines:   src,chan,val
 //
-// This is the micro:bit you plug into the Mac. Point the bridge at its
-// serial port:
-//   cd bridge
-//   uv run sonification-bridge --config config/mapping.example.yaml \
-//       --source serial --port /dev/tty.usbmodemXXXX
+// This is the micro:bit you plug into your PC.
 //
 // Every micro:bit in one PlayBoard must share the SAME radio group.
 // =====================================================================
@@ -25,7 +21,7 @@ basic.clearScreen()
 
 // The sources already format the whole "src,chan,val" line, so the hub is a
 // dumb relay: whatever arrives on the radio goes straight out the serial port.
-// (All meaning -- scaling, what-controls-what -- lives in the bridge config.)
+// (All meaning -- scaling, what-controls-what -- lives in the webapp.)
 radio.onReceivedString(function (received) {
     serial.writeLine(received)
     led.toggle(2, 2)   // blink the centre LED on every relayed message
