@@ -19,7 +19,7 @@ controls what) lives in the [web app](../webapp/).
 ## The programs
 
 | File | Role | Sensors → channels |
-|---|---|---|---|
+|---|---|---|
 | [bridge.ts](bridge.ts) | Gateway (plugs into the computer) | — relays data from Micro:Bits to webapp — |
 | [source_1_light_accel.ts](source_1_light_accel.ts) | Example source, built-in sensors | `light` (0–255), `accel_x` (±1024) |
 | [source_2_pot_flex.ts](source_2_pot_flex.ts) | Example source, analogue pins | `pot` (P0), `flex` (P1) |
